@@ -1,0 +1,179 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20261009023747
+Username: AMIRALISADAT\amira
+RunAs User: AMIRALISADAT\amira
+Configuration Name: 
+Machine: AMIRALISADAT (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+Process ID: 14280
+PSVersion: 5.1.26100.9444
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9444
+BuildVersion: 10.0.26100.9444
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Transcript started, output file is .\diagnostic-20261009-023747.txt
+PS C:\Users\amira\dr-online> Write-Host "`n========== 1. PROJECT ==========" -ForegroundColor Cyan
+
+========== 1. PROJECT ==========
+PS C:\Users\amira\dr-online> Get-Location
+
+Path
+----
+C:\Users\amira\dr-online
+
+
+PS C:\Users\amira\dr-online> node --version
+v24.21.0
+PS C:\Users\amira\dr-online> npm.cmd --version
+12.2.0
+PS C:\Users\amira\dr-online> Write-Host "`n========== 2. TYPESCRIPT ==========" -ForegroundColor Cyan
+
+========== 2. TYPESCRIPT ==========
+PS C:\Users\amira\dr-online> npm.cmd exec -- tsc --noEmit
+npm notice run dr-online@1.0.0 npx
+npm notice run tsc --noEmit
+src/auth.tsx:527:34 - error TS7006: Parameter 'data' implicitly has an 'any' type.
+
+527       async completeRegistration(data) {
+                                     ~~~~
+
+src/pages/AppPages.tsx:22:48 - error TS2345: Argument of type 'string' is not assignable to parameter of
+ type 'number'.
+
+22         const apiProfile = await apiGetProfile(patientUserId);
+                                                  ~~~~~~~~~~~~~
+
+src/pages/AppPages.tsx:50:46 - error TS2345: Argument of type 'string' is not assignable to parameter of
+ type 'number'.
+
+50         const apiVitals = await apiGetVitals(patientUserId);
+                                                ~~~~~~~~~~~~~
+
+src/pages/AppPages.tsx:52:36 - error TS7006: Parameter 'v' implicitly has an 'any' type.
+
+52         allVitals = apiVitals.map((v) => ({
+                                      ~
+
+src/pages/AppPages.tsx:243:42 - error TS2554: Expected 1 arguments, but got 2.
+
+243               await apiAddVital(user.id, {
+                                             ~
+244                 type,
+    ~~~~~~~~~~~~~~~~~~~~~
+...
+247                 context: type === "sugar" ? context : undefined,
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+248               });
+    ~~~~~~~~~~~~~~~
+
+src/pages/CompleteRegistration.tsx:6:11 - error TS2339: Property 'completeRegistration' does not exist o
+n type 'AuthValue'.
+
+6   const { completeRegistration } = useAuth();
+            ~~~~~~~~~~~~~~~~~~~~
+
+
+Found 6 errors in 3 files.
+
+Errors  Files
+     1  src/auth.tsx:527
+     4  src/pages/AppPages.tsx:22
+     1  src/pages/CompleteRegistration.tsx:6
+PS C:\Users\amira\dr-online> Write-Host "`n========== 3. DEPENDENCIES ==========" -ForegroundColor Cyan
+
+========== 3. DEPENDENCIES ==========
+PS C:\Users\amira\dr-online> npm.cmd ls --depth=0
+dr-online@1.0.0 C:\Users\amira\dr-online
++-- @capacitor/android@7.6.9
++-- @capacitor/cli@7.6.9
++-- @capacitor/core@7.6.9
++-- @capacitor/status-bar@7.0.6
++-- @tailwindcss/vite@4.3.3
++-- @types/react-dom@19.3.0
++-- @types/react@19.3.0
++-- @vitejs/plugin-react@5.2.0
++-- dexie@4.4.6
++-- esbuild@0.28.2
++-- lucide-react@0.544.0
++-- react-dom@19.2.8
++-- react-router-dom@7.18.4
++-- react@19.2.8
++-- recharts@3.10.1
++-- tailwindcss@4.3.3
++-- typescript@5.9.3
+`-- vite@7.3.6
+PS C:\Users\amira\dr-online> Write-Host "`n========== 4. IMPORTANT FILES ==========" -ForegroundColor Cyan
+
+========== 4. IMPORTANT FILES ==========
+PS C:\Users\amira\dr-online> $files = @(
+  "src\auth.tsx",
+  "src\api.ts",
+  "src\pages\AppPages.tsx",
+  "src\pages\CompleteRegistration.tsx",
+  "src\pages\Welcome.tsx",
+  "backend\app\api\medical.py",
+  "backend\app\api\auth.py"
+)
+PS C:\Users\amira\dr-online> foreach ($file in $files) {
+  if (Test-Path $file) {
+    $item = Get-Item $file
+    Write-Host "FOUND: $file ($($item.Length) bytes)"
+  } else {
+    Write-Host "MISSING: $file" -ForegroundColor Yellow
+  }
+}
+FOUND: src\auth.tsx (16941 bytes)
+FOUND: src\api.ts (3796 bytes)
+FOUND: src\pages\AppPages.tsx (26190 bytes)
+FOUND: src\pages\CompleteRegistration.tsx (9739 bytes)
+FOUND: src\pages\Welcome.tsx (14584 bytes)
+FOUND: backend\app\api\medical.py (6087 bytes)
+FOUND: backend\app\api\auth.py (5730 bytes)
+PS C:\Users\amira\dr-online> Write-Host "`n========== 5. ENCODING CHECK ==========" -ForegroundColor Cyan
+
+========== 5. ENCODING CHECK ==========
+PS C:\Users\amira\dr-online> $checkFiles = @(
+  "src\auth.tsx",
+  "src\pages\Welcome.tsx",
+  "src\pages\CompleteRegistration.tsx"
+)
+PS C:\Users\amira\dr-online> foreach ($file in $checkFiles) {
+  if (Test-Path $file) {
+    $content = [System.IO.File]::ReadAllText(
+      (Resolve-Path $file),
+      [System.Text.Encoding]::UTF8
+    )
+
+    $replacementCount = ([regex]::Matches($content, [char]0xFFFD)).Count
+    $mojibakeCount = ([regex]::Matches(
+      $content,
+      'Ã.|Â.|Ø.|Ù.'
+    )).Count
+
+    Write-Host "$file | Replacement chars: $replacementCount | Possible mojibake: $mojibakeCount"
+  }
+}
+src\auth.tsx | Replacement chars: 0 | Possible mojibake: 88
+src\pages\Welcome.tsx | Replacement chars: 0 | Possible mojibake: 0
+src\pages\CompleteRegistration.tsx | Replacement chars: 0 | Possible mojibake: 0
+PS C:\Users\amira\dr-online> Write-Host "`n========== 6. BACKEND HEALTH ==========" -ForegroundColor Cyan
+
+========== 6. BACKEND HEALTH ==========
+PS C:\Users\amira\dr-online> try {
+  Invoke-RestMethod "http://127.0.0.1:8000/api/health" -TimeoutSec 3 |
+    ConvertTo-Json -Depth 5
+} catch {
+  Write-Host "Backend health check failed: $($_.Exception.Message)" -ForegroundColor Yellow
+}
+>> TerminatingError(Invoke-RestMethod): "Unable to connect to the remote server"
+Backend health check failed: Unable to connect to the remote server
+PS C:\Users\amira\dr-online> Stop-Transcript
+**********************
+Windows PowerShell transcript end
+End time: 20261009023754
+**********************

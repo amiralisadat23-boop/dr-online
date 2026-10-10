@@ -1,0 +1,621 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
+import { db, openChat, openNote, sealChat, sealNote } from "../db";
+import { useAuth } from "../auth";
+import { alertFromVital, assessVital, assistantReply } from "../ai";
+import type { Alert, ChatMessage, Medication, Note, PatientProfile, User, Vital, VitalType } from "../types";
+
+function usePatientBundle(patientUserId?: string) {
+  const [profile, setProfile] = useState<PatientProfile | undefined>();
+  const [patient, setPatient] = useState<User | undefined>();
+  const [vitals, setVitals] = useState<Vital[]>([]);
+  const [meds, setMeds] = useState<Medication[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+
+  async function reload() {
+    if (!patientUserId) return;
+    setPatient(await db.users.get(patientUserId));
+    setProfile(await db.profiles.where("userId").equals(patientUserId).first());
+    const allVitals = await db.vitals.where("patientUserId").equals(patientUserId).toArray();
+    setVitals(allVitals.sort((a, b) => b.at - a.at));
+    setMeds(await db.medications.where("patientUserId").equals(patientUserId).toArray());
+    setNotes(
+      (
+        await Promise.all(
+          (await db.notes.where("patientUserId").equals(patientUserId).toArray()).map(openNote),
+        )
+      ).sort((a, b) => b.at - a.at),
+    );
+    setAlerts((await db.alerts.where("patientUserId").equals(patientUserId).toArray()).sort((a, b) => b.at - a.at));
+  }
+
+  useEffect(() => {
+    reload();
+  }, [patientUserId]);
+
+  return { profile, patient, vitals, meds, notes, alerts, reload };
+}
+
+export function PatientHome() {
+  const { user } = useAuth();
+  const data = usePatientBundle(user?.id);
+  const last = (t: VitalType) => data.vitals.find((v) => v.type === t);
+
+  return (
+    <div className="space-y-4 rise">
+      <Hero name={user?.name || ""} profile={data.profile} />
+      <div className="grid grid-cols-2 gap-3 stagger">
+        <VitalTile title="قند خون" unit="mg/dL" v={last("sugar")} />
+        <VitalTile title="فشار" unit="mmHg" v={last("bp")} />
+        <VitalTile title="ضربان" unit="bpm" v={last("hr")} />
+        <VitalTile title="اکسیژن" unit="%" v={last("o2")} />
+      </div>
+      <Link to="/app/log" className="block text-center h-12 leading-[48px] rounded-2xl bg-teal text-white font-bold">
+        ثبت علائم امروز
+      </Link>
+      <section className="card rounded-3xl p-4">
+        <p className="font-bold mb-3">داروها</p>
+        {data.meds.map((m) => (
+          <div key={m.id} className="flex justify-between py-2 border-b border-black/5 last:border-0">
+            <div>
+              <p className="font-medium">{m.name}</p>
+              <p className="text-xs text-muted">{m.schedule}</p>
+            </div>
+            <p className="text-sm text-teal">{m.dose}</p>
+          </div>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function Hero({ name, profile }: { name: string; profile?: PatientProfile }) {
+  const bmi =
+    profile && profile.heightCm
+      ? (profile.weightKg / (profile.heightCm / 100) ** 2).toFixed(1)
+      : "—";
+  return (
+    <div className="rounded-[28px] p-5 text-white bg-gradient-to-br from-teal to-teal-deep">
+      <p className="opacity-80 text-sm">سلام، خوش اومدی</p>
+      <h2 className="text-2xl font-extrabold mt-1">{name.split(" ")[0]} جان</h2>
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+        <Mini k="سن" v={profile?.age ?? "—"} />
+        <Mini k="قد" v={profile?.heightCm ? `${profile.heightCm}` : "—"} />
+        <Mini k="BMI" v={bmi} />
+      </div>
+    </div>
+  );
+}
+
+function Mini({ k, v }: { k: string; v: string | number }) {
+  return (
+    <div className="bg-white/15 rounded-2xl py-2">
+      <p className="text-[11px] opacity-80">{k}</p>
+      <p className="font-bold">{v}</p>
+    </div>
+  );
+}
+
+function VitalTile({ title, unit, v }: { title: string; unit: string; v?: Vital }) {
+  const a = v ? assessVital(v) : null;
+  const color = !a ? "text-muted" : a.level === "ok" ? "text-ok" : a.level === "warn" ? "text-amber-600" : "text-coral";
+  return (
+    <div className="card rounded-3xl p-4 min-h-[120px] rise">
+      <p className="text-sm text-muted">{title}</p>
+      <p className={`text-3xl font-extrabold mt-2 ${color}`}>
+        {v ? (v.value2 ? `${v.value}/${v.value2}` : v.value) : "—"}
+      </p>
+      <p className="text-xs text-muted mt-1">{v ? unit : "هنوز ثبت نشده"}</p>
+    </div>
+  );
+}
+
+export function LogVital() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [type, setType] = useState<VitalType>("sugar");
+  const [value, setValue] = useState("");
+  const [value2, setValue2] = useState("");
+  const [context, setContext] = useState("ناشتا");
+
+  const types: { id: VitalType; label: string }[] = [
+    { id: "sugar", label: "قند" },
+    { id: "bp", label: "فشار" },
+    { id: "hr", label: "ضربان" },
+    { id: "o2", label: "اکسیژن" },
+    { id: "temp", label: "تب" },
+    { id: "weight", label: "وزن" },
+    { id: "mood", label: "حال" },
+  ];
+
+  return (
+    <div>
+      <h2 className="text-2xl font-extrabold mb-4">ثبت علائم</h2>
+      <div className="flex flex-wrap gap-2 mb-4">
+        {types.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setType(t.id)}
+            className={`px-3 py-2 rounded-full text-sm ${type === t.id ? "bg-teal text-white" : "bg-white"}`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div className="card rounded-3xl p-4 space-y-3">
+        <label className="block">
+          <span className="text-sm text-muted">{type === "bp" ? "سیستول" : "مقدار"}</span>
+          <input
+            className="mt-1 w-full h-12 rounded-2xl bg-paper px-4"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            inputMode="decimal"
+          />
+        </label>
+        {type === "bp" && (
+          <label className="block">
+            <span className="text-sm text-muted">دیاستول</span>
+            <input
+              className="mt-1 w-full h-12 rounded-2xl bg-paper px-4"
+              value={value2}
+              onChange={(e) => setValue2(e.target.value)}
+              inputMode="decimal"
+            />
+          </label>
+        )}
+        {type === "sugar" && (
+          <div className="flex gap-2">
+            {["ناشتا", "بعد غذا", "تصادفی"].map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setContext(c)}
+                className={`flex-1 h-10 rounded-xl text-sm ${context === c ? "bg-teal text-white" : "bg-paper"}`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+        <button
+          className="w-full h-12 rounded-2xl bg-teal text-white font-bold"
+          onClick={async () => {
+            if (!user || !value || Number.isNaN(Number(value))) return;
+            const vital: Vital = {
+              id: crypto.randomUUID(),
+              patientUserId: user.id,
+              type,
+              value: Number(value),
+              value2: value2 ? Number(value2) : undefined,
+              context: type === "sugar" ? context : undefined,
+              at: Date.now(),
+            };
+            await db.vitals.add(vital);
+            const alert = alertFromVital(user.id, vital);
+            if (alert) await db.alerts.add(alert);
+            navigate("/app");
+          }}
+        >
+          ذخیره
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function PatientRecord() {
+  const { user } = useAuth();
+  const data = usePatientBundle(user?.id);
+  const p = data.profile;
+  return (
+    <div className="space-y-4 rise">
+      <h2 className="text-2xl font-extrabold">پرونده من</h2>
+      <div className="card rounded-3xl p-4 space-y-2 text-sm">
+        <Row k="کد ملی" v={p?.nationalId} />
+        <Row k="سن" v={p?.age} />
+        <Row k="قد" v={p?.heightCm ? `${p.heightCm} سانتی‌متر` : undefined} />
+        <Row k="وزن" v={p?.weightKg ? `${p.weightKg} کیلو` : undefined} />
+        <Row k="گروه خونی" v={p?.bloodType} />
+        <Row k="شماره مراقب" v={p?.caregiverPhone} />
+        <Row k="بیماری‌ها" v={p?.conditions.join("، ")} />
+        <Row k="حساسیت" v={p?.allergies} />
+      </div>
+      <Notes notes={data.notes} />
+      <SugarChart vitals={data.vitals} />
+    </div>
+  );
+}
+
+function Row({ k, v }: { k: string; v?: string | number }) {
+  return (
+    <div className="flex justify-between py-2 border-b border-black/5">
+      <span className="text-muted">{k}</span>
+      <span className="font-medium">{v || "—"}</span>
+    </div>
+  );
+}
+
+function Notes({ notes }: { notes: Note[] }) {
+  return (
+    <section className="card rounded-3xl p-4">
+      <p className="font-bold mb-2">یادداشت‌ها</p>
+      {notes.length === 0 && <p className="text-sm text-muted">یادداشتی نیست.</p>}
+      {notes.map((n) => (
+        <p key={n.id} className="text-sm leading-7 py-2 border-b border-black/5 last:border-0">
+          <span className="text-teal text-xs">{n.kind === "doctor" ? "پزشک" : "مراقب"} · </span>
+          {n.body}
+        </p>
+      ))}
+    </section>
+  );
+}
+
+function SugarChart({ vitals }: { vitals: Vital[] }) {
+  const data = useMemo(
+    () =>
+      vitals
+        .filter((v) => v.type === "sugar")
+        .slice(0, 8)
+        .reverse()
+        .map((v) => ({ t: new Date(v.at).toLocaleDateString("fa-IR"), v: v.value })),
+    [vitals],
+  );
+  if (data.length < 2) return null;
+  return (
+    <section className="card rounded-3xl p-4">
+      <p className="font-bold mb-3">روند قند خون</p>
+      <div className="h-40">
+        <ResponsiveContainer>
+          <LineChart data={data}>
+            <XAxis dataKey="t" tick={{ fontSize: 10 }} />
+            <Tooltip />
+            <Line type="monotone" dataKey="v" stroke="#0f6e6b" strokeWidth={3} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
+  );
+}
+
+export function AIChat() {
+  const { user } = useAuth();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [text, setText] = useState("");
+  const [targetId, setTargetId] = useState(user?.id || "");
+  const [patients, setPatients] = useState<User[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      if (!user) return;
+      if (user.role === "patient") setTargetId(user.id);
+      else {
+        const links = await db.links.where("fromUserId").equals(user.id).toArray();
+        const ps = await db.users.bulkGet(links.map((l) => l.patientUserId));
+        setPatients(ps.filter(Boolean) as User[]);
+        if (links[0]) setTargetId(links[0].patientUserId);
+      }
+      const all = await db.chats.where("userId").equals(user.id).toArray();
+      setMessages((await Promise.all(all.map(openChat))).sort((a, b) => a.at - b.at));
+    })();
+  }, [user]);
+
+  async function send() {
+    if (!user || !text.trim()) return;
+    const mine: ChatMessage = { id: crypto.randomUUID(), userId: user.id, role: "user", content: text, at: Date.now() };
+    const profile = await db.profiles.where("userId").equals(targetId).first();
+    const vitals = await db.vitals.where("patientUserId").equals(targetId).toArray();
+    const reply: ChatMessage = {
+      id: crypto.randomUUID(),
+      userId: user.id,
+      role: "assistant",
+      content: assistantReply(text, profile, vitals, user.role),
+      at: Date.now() + 1,
+    };
+    await db.chats.bulkAdd([await sealChat(mine), await sealChat(reply)]);
+    setMessages((m) => [...m, mine, reply]);
+    setText("");
+  }
+
+  return (
+    <div className="flex flex-col min-h-[70vh]">
+      <h2 className="text-2xl font-extrabold">همراه هوشمند</h2>
+      {user?.role !== "patient" && (
+        <select
+          className="mt-3 h-11 rounded-2xl bg-white px-3"
+          value={targetId}
+          onChange={(e) => setTargetId(e.target.value)}
+        >
+          {patients.map((p) => (
+            <option key={p.id} value={p.id}>
+              پرونده {p.name}
+            </option>
+          ))}
+        </select>
+      )}
+      <div className="flex-1 space-y-3 mt-4">
+        {messages.map((m) => (
+          <div
+            key={m.id}
+            className={`max-w-[90%] rounded-3xl px-4 py-3 text-sm leading-7 whitespace-pre-line ${
+              m.role === "user" ? "mr-auto bg-teal text-white" : "ml-auto card"
+            }`}
+          >
+            {m.content}
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2 mt-4">
+        <input
+          className="flex-1 h-12 rounded-2xl bg-white px-4"
+          placeholder="مثلاً قند خونم بالاست..."
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && send()}
+        />
+        <button onClick={send} className="h-12 px-4 rounded-2xl bg-teal text-white font-bold">
+          بپرس
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function MonitorHome() {
+  const { user } = useAuth();
+  const [rows, setRows] = useState<{ patient: User; profile?: PatientProfile; last?: Vital; alerts: number }[]>([]);
+  const [nid, setNid] = useState("");
+
+  async function load() {
+    if (!user) return;
+    const links = await db.links.where("fromUserId").equals(user.id).toArray();
+    const out = [];
+    for (const l of links) {
+      const patient = await db.users.get(l.patientUserId);
+      if (!patient) continue;
+      const profile = await db.profiles.where("userId").equals(patient.id).first();
+      const vitals = await db.vitals.where("patientUserId").equals(patient.id).toArray();
+      const last = vitals.sort((a, b) => b.at - a.at)[0];
+      const alerts = await db.alerts.where("patientUserId").equals(patient.id).toArray();
+      out.push({ patient, profile, last, alerts: alerts.filter((a) => !a.read).length });
+    }
+    setRows(out);
+  }
+
+  useEffect(() => {
+    load();
+  }, [user]);
+
+  return (
+    <div className="space-y-4 rise">
+      <h2 className="text-2xl font-extrabold">{user?.role === "doctor" ? "بیماران من" : "تحت نظر من"}</h2>
+      {user?.role === "caregiver" && (
+        <div className="flex gap-2">
+          <input
+            className="flex-1 h-12 rounded-2xl bg-white px-4"
+            placeholder="افزودن با کد ملی"
+            value={nid}
+            onChange={(e) => setNid(e.target.value)}
+          />
+          <button
+            className="h-12 px-4 rounded-2xl bg-teal text-white font-bold"
+            onClick={async () => {
+              if (!user) return;
+              const patient = await db.users.where("nationalId").equals(nid.trim()).first();
+              if (!patient) return;
+              await db.links.add({
+                id: crypto.randomUUID(),
+                fromUserId: user.id,
+                patientUserId: patient.id,
+                relation: "مراقب",
+                kind: "care",
+              });
+              setNid("");
+              load();
+            }}
+          >
+            افزودن
+          </button>
+        </div>
+      )}
+      {rows.map((r) => (
+        <Link key={r.patient.id} to={`/app/patient/${r.patient.id}`} className="card rounded-3xl p-4 block">
+          <div className="flex justify-between">
+            <div>
+              <p className="font-bold">{r.patient.name}</p>
+              <p className="text-xs text-muted mt-1">
+                {r.profile?.age} ساله · {r.profile?.conditions.join("، ")}
+              </p>
+            </div>
+            {r.alerts > 0 && (
+              <span className="h-7 min-w-7 px-2 rounded-full bg-coral text-white text-xs grid place-items-center">
+                {r.alerts}
+              </span>
+            )}
+          </div>
+          <p className="text-sm mt-3 text-teal">
+            آخرین ثبت: {r.last ? `${r.last.type} ${r.last.value}` : "ندارد"}
+          </p>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+export function PatientDetail() {
+  const { id } = useParams();
+  const { user } = useAuth();
+  const data = usePatientBundle(id);
+  const [note, setNote] = useState("");
+  const [med, setMed] = useState({ name: "", dose: "", schedule: "" });
+
+  return (
+    <div className="space-y-4 rise">
+      <h2 className="text-2xl font-extrabold">{data.patient?.name}</h2>
+      <div className="grid grid-cols-2 gap-3">
+        <VitalTile title="قند" unit="" v={data.vitals.find((v) => v.type === "sugar")} />
+        <VitalTile title="فشار" unit="" v={data.vitals.find((v) => v.type === "bp")} />
+      </div>
+      <div className="card rounded-3xl p-4 text-sm space-y-2">
+        <Row k="کد ملی" v={data.profile?.nationalId} />
+        <Row k="شماره مراقب" v={data.profile?.caregiverPhone} />
+        <Row k="تماس بیمار" v={data.patient?.phone} />
+        <Row k="قد / وزن" v={`${data.profile?.heightCm} / ${data.profile?.weightKg}`} />
+        <Row k="گروه خونی" v={data.profile?.bloodType} />
+        <Row k="حساسیت" v={data.profile?.allergies} />
+      </div>
+      <SugarChart vitals={data.vitals} />
+      <Notes notes={data.notes} />
+      <div className="card rounded-3xl p-4 space-y-2">
+        <p className="font-bold">یادداشت جدید</p>
+        <textarea
+          className="w-full h-24 rounded-2xl bg-paper p-3"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+        <button
+          className="w-full h-11 rounded-2xl bg-teal text-white font-bold"
+          onClick={async () => {
+            if (!user || !id || !note.trim()) return;
+            await db.notes.add(
+              await sealNote({
+                id: crypto.randomUUID(),
+                authorId: user.id,
+                patientUserId: id,
+                body: note,
+                kind: user.role === "doctor" ? "doctor" : "caregiver",
+                at: Date.now(),
+              }),
+            );
+            setNote("");
+            data.reload();
+          }}
+        >
+          ثبت یادداشت
+        </button>
+      </div>
+      {user?.role === "doctor" && (
+        <div className="card rounded-3xl p-4 space-y-2">
+          <p className="font-bold">داروی جدید</p>
+          <input className="w-full h-11 rounded-2xl bg-paper px-3" placeholder="نام دارو" value={med.name} onChange={(e) => setMed({ ...med, name: e.target.value })} />
+          <input className="w-full h-11 rounded-2xl bg-paper px-3" placeholder="دوز" value={med.dose} onChange={(e) => setMed({ ...med, dose: e.target.value })} />
+          <input className="w-full h-11 rounded-2xl bg-paper px-3" placeholder="زمان مصرف" value={med.schedule} onChange={(e) => setMed({ ...med, schedule: e.target.value })} />
+          <button
+            className="w-full h-11 rounded-2xl bg-teal-deep text-white font-bold"
+            onClick={async () => {
+              if (!id || !med.name) return;
+              await db.medications.add({ id: crypto.randomUUID(), patientUserId: id, ...med });
+              setMed({ name: "", dose: "", schedule: "" });
+              data.reload();
+            }}
+          >
+            افزودن دارو
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function AlertsPage() {
+  const { user } = useAuth();
+  const [alerts, setAlerts] = useState<(Alert & { patientName: string })[]>([]);
+  useEffect(() => {
+    (async () => {
+      if (!user) return;
+      const links = await db.links.where("fromUserId").equals(user.id).toArray();
+      const ids = user.role === "patient" ? [user.id] : links.map((l) => l.patientUserId);
+      const all = await db.alerts.toArray();
+      const rows = [];
+      for (const a of all.filter((x) => ids.includes(x.patientUserId))) {
+        const p = await db.users.get(a.patientUserId);
+        rows.push({ ...a, patientName: p?.name || "" });
+      }
+      setAlerts(rows.sort((a, b) => b.at - a.at));
+    })();
+  }, [user]);
+
+  return (
+    <div className="space-y-3">
+      <h2 className="text-2xl font-extrabold">هشدارها</h2>
+      {alerts.map((a) => (
+        <div key={a.id} className="card rounded-3xl p-4">
+          <p className={`text-xs font-bold ${a.level === "danger" ? "text-coral" : "text-amber-700"}`}>
+            {a.patientName}
+          </p>
+          <p className="font-bold mt-1">{a.title}</p>
+          <p className="text-sm text-muted mt-1">{a.body}</p>
+        </div>
+      ))}
+      {alerts.length === 0 && <p className="text-muted">هشداری نیست.</p>}
+    </div>
+  );
+}
+
+export function MePage() {
+  const { user, logout, changePassword } = useAuth();
+  const navigate = useNavigate();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const roleFa = user?.role === "doctor" ? "پزشک" : user?.role === "caregiver" ? "مراقب" : "بیمار";
+
+  return (
+    <div className="space-y-4 rise">
+      <div className="card rounded-3xl p-5 space-y-3">
+        <h2 className="text-2xl font-extrabold">{user?.name}</h2>
+        <Row k="نقش" v={roleFa} />
+        <Row k="موبایل" v={user?.phone} />
+        <Row k="کد ملی" v={user?.nationalId} />
+        <p className="text-sm text-muted leading-7 pt-2">
+          پایگاه داده روی خود گوشی است و به سرور اینترنتی وصل نیست. رمز حساب با PBKDF2 هش می‌شود، یادداشت و گفتگو با AES-256-GCM رمز می‌شود، نشست امضاشده ۸ ساعته است و ورود اشتباه چندباره قفل می‌شود. پشتیبان ابری اندروید برای این برنامه خاموش است.
+        </p>
+      </div>
+      <form
+        className="card rounded-3xl p-5 space-y-3"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setErr(null);
+          setMsg(null);
+          const res = await changePassword(current, next);
+          if (res) setErr(res);
+          else {
+            setMsg("رمز با موفقیت عوض شد.");
+            setCurrent("");
+            setNext("");
+          }
+        }}
+      >
+        <p className="font-bold">تغییر رمز حساب</p>
+        <input
+          className="w-full h-12 rounded-2xl bg-paper px-4"
+          type="password"
+          placeholder="رمز فعلی"
+          value={current}
+          onChange={(e) => setCurrent(e.target.value)}
+        />
+        <input
+          className="w-full h-12 rounded-2xl bg-paper px-4"
+          type="password"
+          placeholder="رمز جدید (حداقل ۸ کاراکتر، حرف و عدد)"
+          value={next}
+          onChange={(e) => setNext(e.target.value)}
+        />
+        {err && <p className="text-coral text-sm">{err}</p>}
+        {msg && <p className="text-ok text-sm">{msg}</p>}
+        <button className="w-full h-11 rounded-2xl bg-teal text-white font-bold">ذخیره رمز جدید</button>
+      </form>
+      <button
+        className="w-full h-12 rounded-2xl bg-coral text-white font-bold pressable"
+        onClick={() => {
+          logout();
+          navigate("/");
+        }}
+      >
+        خروج از حساب
+      </button>
+    </div>
+  );
+}

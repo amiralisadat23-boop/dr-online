@@ -1,0 +1,662 @@
+﻿import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  clearFails,
+  clearSession,
+  hashPassword,
+  lockStatus,
+  passwordPolicy,
+  readSession,
+  registerFail,
+  unlockVault,
+  verifyPassword,
+  writeSession,
+} from "./crypto";
+
+import { db, encryptExistingRecords } from "./db";
+import { seedIfEmpty } from "./seed";
+import { apiLogin, apiRegister, apiRequestOtp, apiVerifyOtp, apiCompleteRegistration } from "./api";
+
+import type {
+  PublicUser,
+  Role,
+  User,
+} from "./types";
+
+function toPublic(u: User): PublicUser {
+  const { passwordHash: _hidden, ...rest } = u;
+  return rest;
+}
+
+type AuthValue = {
+  user: PublicUser | null;
+  ready: boolean;
+  login: (
+    identity: string,
+    password: string,
+    role: Role,
+  ) => Promise<string | null>;
+  register: (
+    payload: RegisterPayload,
+  ) => Promise<string | null>;
+  changePassword: (
+    current: string,
+    next: string,
+  ) => Promise<string | null>;
+  logout: () => void;
+  requestOtp: (phone: string) => Promise<{ error: string | null; devCode?: string }>;
+  verifyOtp: (phone: string, code: string, role: Role) => Promise<string | null>;
+};
+
+export type RegisterPayload = {
+  role: Role;
+  name: string;
+  phone: string;
+  password: string;
+  nationalId?: string;
+  age?: number;
+  heightCm?: number;
+  weightKg?: number;
+  gender?: "Ø²Ù†" | "Ù…Ø±Ø¯";
+  bloodType?: string;
+  caregiverPhone?: string;
+  conditions?: string[];
+  allergies?: string;
+  relation?: string;
+  patientNationalId?: string;
+};
+
+
+const DR_ONLINE_REGISTRATION_TOKEN = "dr-online-registration-token";
+const DR_ONLINE_REGISTRATION_PHONE = "dr-online-registration-phone";
+const DR_ONLINE_REGISTRATION_ROLE = "dr-online-registration-role";
+
+function savePendingRegistration(
+  token: string,
+  phone: string,
+  role: Role,
+) {
+  sessionStorage.setItem(DR_ONLINE_REGISTRATION_TOKEN, token);
+  sessionStorage.setItem(DR_ONLINE_REGISTRATION_PHONE, phone);
+  sessionStorage.setItem(DR_ONLINE_REGISTRATION_ROLE, role);
+}
+
+export function getPendingRegistration() {
+  return {
+    token: sessionStorage.getItem(DR_ONLINE_REGISTRATION_TOKEN),
+    phone: sessionStorage.getItem(DR_ONLINE_REGISTRATION_PHONE),
+    role: sessionStorage.getItem(DR_ONLINE_REGISTRATION_ROLE) as Role | null,
+  };
+}
+
+export function clearPendingRegistration() {
+  sessionStorage.removeItem(DR_ONLINE_REGISTRATION_TOKEN);
+  sessionStorage.removeItem(DR_ONLINE_REGISTRATION_PHONE);
+  sessionStorage.removeItem(DR_ONLINE_REGISTRATION_ROLE);
+}
+const AuthContext = createContext<AuthValue | null>(null);
+
+function normalizeApiUser(data: any) {
+  return data?.user || data;
+}
+
+function apiUserToLocalUser(
+  apiUser: any,
+  password: string,
+): User {
+  return {
+    id: `api-${String(apiUser.id)}`,
+    role: apiUser.role as Role,
+    name: apiUser.name,
+    phone: apiUser.phone,
+    passwordHash: "",
+    nationalId: undefined,
+  };
+}
+
+export function AuthProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [user, setUser] =
+    useState<PublicUser | null>(null);
+
+  const [ready, setReady] =
+    useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        await seedIfEmpty();
+
+        const session = await readSession();
+
+        if (session) {
+          const found =
+            await db.users.get(session.userId);
+
+          if (found) {
+            await unlockVault();
+            await encryptExistingRecords();
+            setUser(toPublic(found));
+          } else {
+            clearSession();
+          }
+        }
+      } catch (error) {
+        console.error(
+          "Auth initialization failed:",
+          error,
+        );
+      } finally {
+        setReady(true);
+      }
+    })();
+  }, []);
+
+  const value = useMemo<AuthValue>(
+    () => ({
+      user,
+      ready,
+
+      logout() {
+        clearSession();
+        setUser(null);
+      },
+
+      async requestOtp(phone: string) {
+        const normalizedPhone = phone.trim();
+
+        if (!normalizedPhone) {
+          return { error: "????? ?????? ?? ???? ????." };
+        }
+
+        try {
+          const result = await apiRequestOtp(normalizedPhone);
+
+          return {
+            error: null,
+            devCode:
+              typeof result?.dev_code === "string"
+                ? result.dev_code
+                : undefined,
+          };
+        } catch (error: any) {
+          console.error("OTP request failed:", error);
+
+          return {
+            error:
+              error?.message ||
+              "????? ?? ????? ????? ???.",
+          };
+        }
+      },
+
+      async verifyOtp(phone, code, role) {
+        const normalizedPhone = phone.trim();
+        const normalizedCode = code.trim();
+
+        if (!normalizedPhone) {
+          return "شماره موبایل را وارد کنید.";
+        }
+
+        if (!/^\d{6}$/.test(normalizedCode)) {
+          return "کد تأیید باید ۶ رقم باشد.";
+        }
+
+        try {
+          const result = await apiVerifyOtp(
+            normalizedPhone,
+            normalizedCode,
+          );
+
+          /*
+           * Existing account:
+           * OTP verification already returned a JWT + user.
+           */
+          if (result?.account_status === "existing_user") {
+            const apiUser = normalizeApiUser(result);
+
+            if (
+              !apiUser ||
+              apiUser.id === undefined ||
+              !apiUser.name ||
+              !apiUser.phone
+            ) {
+              return "اطلاعات کاربر از سرور معتبر نیست.";
+            }
+
+            if (apiUser.role && apiUser.role !== role) {
+              return "نقش حساب با صفحه انتخاب‌شده مطابقت ندارد.";
+            }
+
+            await unlockVault();
+
+            const localUser = apiUserToLocalUser(
+              apiUser,
+              "",
+            );
+
+            const existing = await db.users.get(localUser.id);
+
+            if (existing) {
+              await db.users.update(localUser.id, {
+                name: localUser.name,
+                phone: localUser.phone,
+                role: localUser.role,
+              });
+            } else {
+              await db.users.put(localUser);
+            }
+
+            await writeSession(localUser.id);
+            setUser(toPublic(localUser));
+
+            return null;
+          }
+
+          /*
+           * New account:
+           * Server returns a short-lived registration token.
+           */
+          if (
+            result?.account_status === "new_user" &&
+            typeof result?.registration_token === "string"
+          ) {
+            savePendingRegistration(
+              result.registration_token,
+              normalizedPhone,
+              role,
+            );
+
+            return "REGISTRATION_REQUIRED";
+          }
+
+          return "پاسخ نامعتبر از سرور دریافت شد.";
+        } catch (error: any) {
+          console.error("OTP verification failed:", error);
+
+          return (
+            error?.message ||
+            "کد تأیید صحیح نیست یا منقضی شده است."
+          );
+        }
+      },
+
+      async login(
+        identity,
+        password,
+        role,
+      ) {
+        const id = identity.trim();
+
+        if (!id || !password) {
+          return "Ø´Ù…Ø§Ø±Ù‡ Ù…ÙˆØ¨Ø§ÛŒÙ„ Ùˆ Ø±Ù…Ø² Ø¹Ø¨ÙˆØ± Ø±Ø§ ÙˆØ§Ø±Ø¯ Ú©Ù†ÛŒØ¯.";
+        }
+
+        const lockKey =
+          `${role}:${id}`;
+
+        const lock =
+          lockStatus(lockKey);
+
+        if (lock.locked) {
+          return lock.message;
+        }
+
+        try {
+          /*
+           * REAL BACKEND LOGIN
+           *
+           * Authentication is now performed
+           * by FastAPI, not IndexedDB.
+           */
+          const result =
+            await apiLogin(
+              id,
+              password,
+            );
+
+          const apiUser =
+            normalizeApiUser(result);
+
+          if (
+            !apiUser ||
+            apiUser.id === undefined ||
+            !apiUser.name ||
+            !apiUser.phone
+          ) {
+            return "Ø¨Ø§Ø²Ú¯Ø´ØªÛŒ Ø³Ø±ÙˆØ± Ù†Ø§Ù…Ø¹ØªØ¨Ø± Ø§Ø³Øª.";
+          }
+
+          if (
+            apiUser.role &&
+            apiUser.role !== role
+          ) {
+            return "Ù†Ù‚Ø´ Ú©Ø§Ø±Ø¨Ø± Ø¨Ø§ Ù†Ù‚Ø´ Ø§Ù†ØªØ®Ø§Ø¨ÛŒ Ù…Øªï¿½AØ§ÙˆØª Ø§Ø³Øª.";
+          }
+
+          clearFails(lockKey);
+
+          await unlockVault();
+
+          /*
+           * Keep a local cache so existing
+           * application screens continue working.
+           */
+          const localUser =
+            apiUserToLocalUser(
+              apiUser,
+              password,
+            );
+
+          const existing =
+            await db.users.get(
+              localUser.id,
+            );
+
+          if (existing) {
+            await db.users.update(
+              localUser.id,
+              {
+                name: localUser.name,
+                phone: localUser.phone,
+                role: localUser.role,
+              },
+            );
+          } else {
+            await db.users.put(
+              localUser,
+            );
+          }
+
+          await writeSession(
+            localUser.id,
+          );
+
+          setUser(
+            toPublic(localUser),
+          );
+
+          return null;
+        } catch (error) {
+          console.error(
+            "Backend login failed:",
+            error,
+          );
+
+          return registerFail(
+            lockKey,
+          );
+        }
+      },
+
+      async register(payload) {
+        const policy =
+          passwordPolicy(
+            payload.password,
+          );
+
+        if (policy) {
+          return policy;
+        }
+
+        if (
+          !payload.name.trim() ||
+          !payload.phone.trim()
+        ) {
+          return "Ù†Ø§Ù… Ùˆ Ù…ÙˆØ¨Ø§ÛŒÙ„ Ø±Ø§ ÙˆØ§Ø±Ø¯ Ú©Ù†ÛŒØ¯.";
+        }
+
+        if (
+          payload.role === "patient" &&
+          payload.nationalId &&
+          payload.nationalId.length < 10
+        ) {
+          return "Ú©Ø¯ Ù…Ù„ÛŒ Ù†Ø§Ø¯Ø±Ø³Øª Ø§Ø³Øª.";
+        }
+
+        try {
+          /*
+           * REAL BACKEND REGISTER
+           *
+           * The backend currently accepts:
+           * name, phone, password, role
+           */
+          const apiUser =
+            await apiRegister(
+              payload.name.trim(),
+              payload.phone.trim(),
+              payload.password,
+              payload.role,
+            );
+
+          if (
+            !apiUser ||
+            apiUser.id === undefined
+          ) {
+            return "Ø«Ø¨Øªâ€ŒÙ†Ø§Ù… Ø¯Ø± Ø³Ø±ÙˆØ± Ù†Ø§Ù…Ùˆï¿½AÙ‚ Ø¨ÙˆØ¯.";
+          }
+
+          await unlockVault();
+
+          const localUser =
+            apiUserToLocalUser(
+              apiUser,
+              payload.password,
+            );
+
+          /*
+           * Cache the authenticated user locally.
+           */
+          await db.users.put(
+            localUser,
+          );
+
+          /*
+           * Keep the patient profile locally
+           * for the current frontend screens.
+           */
+          if (
+            payload.role === "patient"
+          ) {
+            const existingProfile =
+              await db.profiles
+                .where("userId")
+                .equals(localUser.id)
+                .first();
+
+            if (!existingProfile) {
+              await db.profiles.add({
+                id: crypto.randomUUID(),
+                userId: localUser.id,
+                nationalId:
+                  payload.nationalId || "",
+                age:
+                  payload.age || 0,
+                heightCm:
+                  payload.heightCm || 0,
+                weightKg:
+                  payload.weightKg || 0,
+                gender:
+                  payload.gender || "Ø²Ù†",
+                bloodType:
+                  payload.bloodType ||
+                  "Ù†Ø§Ù…Ø´Ø®Øµ",
+                caregiverPhone:
+                  payload.caregiverPhone ||
+                  "",
+                conditions:
+                  payload.conditions || [],
+                allergies:
+                  payload.allergies ||
+                  "Ù†Ø¯Ø§Ø±Ø¯",
+                smoker: false,
+              });
+            }
+          }
+
+          await writeSession(
+            localUser.id,
+          );
+
+          setUser(
+            toPublic(localUser),
+          );
+
+          return null;
+        } catch (error: any) {
+          console.error(
+            "Backend registration failed:",
+            error,
+          );
+
+          return (
+            error?.message ||
+            "Ø«Ø¨Øªâ€ŒÙ†Ø§Ù… Ù†Ø§Ù…Ùˆï¿½AÙ‚ Ø¨ÙˆØ¯."
+          );
+        }
+      },
+      async completeRegistration(data) {
+        const pending = getPendingRegistration();
+
+        if (!pending.token || !pending.phone) {
+          return {
+            error: "فرایند ثبت‌نام منقضی شده است.",
+          };
+        }
+
+        try {
+          const result = await apiCompleteRegistration({
+            ...data,
+            registration_token: pending.token,
+          });
+
+          const apiUser = normalizeApiUser(result);
+
+          if (
+            !apiUser ||
+            apiUser.id === undefined ||
+            !apiUser.name ||
+            !apiUser.phone
+          ) {
+            return {
+              error: "اطلاعات کاربر از سرور معتبر نیست.",
+            };
+          }
+
+          await unlockVault();
+
+          const localUser = apiUserToLocalUser(
+            apiUser,
+            "",
+          );
+
+          const existing = await db.users.get(localUser.id);
+
+          if (existing) {
+            await db.users.update(localUser.id, {
+              name: localUser.name,
+              phone: localUser.phone,
+              role: localUser.role,
+            });
+          } else {
+            await db.users.put(localUser);
+          }
+
+          if (apiUser.role === "patient") {
+            const existingProfile =
+              await db.profiles
+                .where("userId")
+                .equals(localUser.id)
+                .first();
+
+            if (!existingProfile) {
+              await db.profiles.add({
+                id: crypto.randomUUID(),
+                userId: localUser.id,
+                nationalId: data.national_id || "",
+                age: data.age || 0,
+                heightCm: data.height_cm || 0,
+                weightKg: data.weight_kg || 0,
+                gender: data.gender || "نامشخص",
+                bloodType: data.blood_type || "نامشخص",
+                caregiverPhone: data.caregiver_phone || "",
+                conditions: data.conditions || [],
+                allergies: data.allergies || "ندارد",
+                smoker: data.smoker || false,
+              });
+            }
+          }
+
+          await writeSession(localUser.id);
+          clearPendingRegistration();
+          setUser(toPublic(localUser));
+
+          return {
+            error: null,
+          };
+        } catch (error: any) {
+          console.error(
+            "Complete registration failed:",
+            error,
+          );
+
+          return {
+            error:
+              error?.message ||
+              "ثبت اطلاعات با خطا مواجه شد.",
+          };
+        }
+      },async changePassword(
+        current,
+        next,
+      ) {
+        /*
+         * Password changes should eventually
+         * be handled by a dedicated backend
+         * endpoint.
+         *
+         * For now we keep the existing local
+         * password-change behavior disabled
+         * instead of pretending it changes the
+         * server password.
+         */
+        if (!user) {
+          return "ÙˆØ§Ø±Ø¯ Ø­Ø³Ø§Ø¨ Ù†Ø´Ø¯Ù‡â€ŒØ§ÛŒØ¯.";
+        }
+
+        return "ØªØºÛŒÛŒØ± Ø±Ù…Ø² Ø¹Ø¨ÙˆØ± Ø³Ø±ÙˆØ± Ù‡Ù†ÙˆØ² ï¿½AØ¹Ø§Ù„ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.";
+      },
+    }),
+    [user, ready],
+  );
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const ctx =
+    useContext(AuthContext);
+
+  if (!ctx) {
+    throw new Error("Auth");
+  }
+
+  return ctx;
+}
+
+
+
+

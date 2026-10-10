@@ -1,0 +1,800 @@
+﻿DR-ONLINE PROFILE FORM REVIEW
+Source: src\pages\AppPages.tsx
+Generated: 2026-10-09 03:31:47
+
+
+--- Lines 1 to 25 ---
+1: import { useEffect, useMemo, useState } from "react";
+2: import { Link, useNavigate, useParams } from "react-router-dom";
+3: import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
+4: import { db, openChat, openNote, sealChat, sealNote } from "../db";
+5: import { useAuth } from "../auth";
+6: import { alertFromVital, assessVital, assistantReply } from "../ai";
+7: import type { Alert, ChatMessage, Medication, Note, PatientProfile, User, Vital, VitalType } from "../types";
+8: 
+9: import { apiGetProfile, apiSaveProfile, apiGetVitals, apiAddVital } from "../api";
+10: 
+11: function getBackendUserId(localId: string): number | null {
+12:   const match = /^api-(\d+)$/.exec(localId);
+13:   if (!match) return null;
+14:   const id = Number(match[1]);
+15:   return Number.isSafeInteger(id) && id > 0 ? id : null;
+16: }
+17: function usePatientBundle(patientUserId?: string) {
+18:   const [profile, setProfile] = useState<PatientProfile | undefined>();
+19:   const [patient, setPatient] = useState<User | undefined>();
+20:   const [vitals, setVitals] = useState<Vital[]>([]);
+21:   const [meds, setMeds] = useState<Medication[]>([]);
+22:   const [notes, setNotes] = useState<Note[]>([]);
+23:   const [alerts, setAlerts] = useState<Alert[]>([]);
+24: 
+25:   async function reload() {
+
+--- Lines 1 to 27 ---
+1: import { useEffect, useMemo, useState } from "react";
+2: import { Link, useNavigate, useParams } from "react-router-dom";
+3: import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
+4: import { db, openChat, openNote, sealChat, sealNote } from "../db";
+5: import { useAuth } from "../auth";
+6: import { alertFromVital, assessVital, assistantReply } from "../ai";
+7: import type { Alert, ChatMessage, Medication, Note, PatientProfile, User, Vital, VitalType } from "../types";
+8: 
+9: import { apiGetProfile, apiSaveProfile, apiGetVitals, apiAddVital } from "../api";
+10: 
+11: function getBackendUserId(localId: string): number | null {
+12:   const match = /^api-(\d+)$/.exec(localId);
+13:   if (!match) return null;
+14:   const id = Number(match[1]);
+15:   return Number.isSafeInteger(id) && id > 0 ? id : null;
+16: }
+17: function usePatientBundle(patientUserId?: string) {
+18:   const [profile, setProfile] = useState<PatientProfile | undefined>();
+19:   const [patient, setPatient] = useState<User | undefined>();
+20:   const [vitals, setVitals] = useState<Vital[]>([]);
+21:   const [meds, setMeds] = useState<Medication[]>([]);
+22:   const [notes, setNotes] = useState<Note[]>([]);
+23:   const [alerts, setAlerts] = useState<Alert[]>([]);
+24: 
+25:   async function reload() {
+26:     if (!patientUserId) return;
+27:     setPatient(await db.users.get(patientUserId));
+
+--- Lines 8 to 36 ---
+8: 
+9: import { apiGetProfile, apiSaveProfile, apiGetVitals, apiAddVital } from "../api";
+10: 
+11: function getBackendUserId(localId: string): number | null {
+12:   const match = /^api-(\d+)$/.exec(localId);
+13:   if (!match) return null;
+14:   const id = Number(match[1]);
+15:   return Number.isSafeInteger(id) && id > 0 ? id : null;
+16: }
+17: function usePatientBundle(patientUserId?: string) {
+18:   const [profile, setProfile] = useState<PatientProfile | undefined>();
+19:   const [patient, setPatient] = useState<User | undefined>();
+20:   const [vitals, setVitals] = useState<Vital[]>([]);
+21:   const [meds, setMeds] = useState<Medication[]>([]);
+22:   const [notes, setNotes] = useState<Note[]>([]);
+23:   const [alerts, setAlerts] = useState<Alert[]>([]);
+24: 
+25:   async function reload() {
+26:     if (!patientUserId) return;
+27:     setPatient(await db.users.get(patientUserId));
+28:     try {
+29:         const backendUserId = getBackendUserId(patientUserId);
+30:         if (backendUserId === null) {
+31:           throw new Error("No numeric backend user ID for this local user.");
+32:         }
+33:         const apiProfileResponse = await apiGetProfile(backendUserId);
+34:         const apiProfile = apiProfileResponse?.profile;
+35:         if (!apiProfile) {
+36:           throw new Error("No profile returned by backend.");
+
+--- Lines 30 to 58 ---
+30:         if (backendUserId === null) {
+31:           throw new Error("No numeric backend user ID for this local user.");
+32:         }
+33:         const apiProfileResponse = await apiGetProfile(backendUserId);
+34:         const apiProfile = apiProfileResponse?.profile;
+35:         if (!apiProfile) {
+36:           throw new Error("No profile returned by backend.");
+37:         }
+38: 
+39:         if (apiProfile) {
+40:           setProfile({
+41:             id: String(apiProfile.id ?? crypto.randomUUID()),
+42:             userId: patientUserId,
+43:             nationalId: apiProfile.national_id,
+44:             age: apiProfile.age,
+45:             heightCm: apiProfile.height_cm,
+46:             weightKg: apiProfile.weight_kg,
+47:             gender: apiProfile.gender as PatientProfile["gender"],
+48:             bloodType: apiProfile.blood_type,
+49:             caregiverPhone: apiProfile.caregiver_phone,
+50:             conditions: apiProfile.conditions,
+51:             allergies: apiProfile.allergies,
+52:             smoker: apiProfile.smoker,
+53:           });
+54:         }
+55:       } catch (error) {
+56:         console.warn("Profile API unavailable, using local cache:", error);
+57: 
+58:         setProfile(
+
+--- Lines 33 to 61 ---
+33:         const apiProfileResponse = await apiGetProfile(backendUserId);
+34:         const apiProfile = apiProfileResponse?.profile;
+35:         if (!apiProfile) {
+36:           throw new Error("No profile returned by backend.");
+37:         }
+38: 
+39:         if (apiProfile) {
+40:           setProfile({
+41:             id: String(apiProfile.id ?? crypto.randomUUID()),
+42:             userId: patientUserId,
+43:             nationalId: apiProfile.national_id,
+44:             age: apiProfile.age,
+45:             heightCm: apiProfile.height_cm,
+46:             weightKg: apiProfile.weight_kg,
+47:             gender: apiProfile.gender as PatientProfile["gender"],
+48:             bloodType: apiProfile.blood_type,
+49:             caregiverPhone: apiProfile.caregiver_phone,
+50:             conditions: apiProfile.conditions,
+51:             allergies: apiProfile.allergies,
+52:             smoker: apiProfile.smoker,
+53:           });
+54:         }
+55:       } catch (error) {
+56:         console.warn("Profile API unavailable, using local cache:", error);
+57: 
+58:         setProfile(
+59:           await db.profiles.where("userId").equals(patientUserId).first(),
+60:         );
+61:       }
+
+--- Lines 35 to 63 ---
+35:         if (!apiProfile) {
+36:           throw new Error("No profile returned by backend.");
+37:         }
+38: 
+39:         if (apiProfile) {
+40:           setProfile({
+41:             id: String(apiProfile.id ?? crypto.randomUUID()),
+42:             userId: patientUserId,
+43:             nationalId: apiProfile.national_id,
+44:             age: apiProfile.age,
+45:             heightCm: apiProfile.height_cm,
+46:             weightKg: apiProfile.weight_kg,
+47:             gender: apiProfile.gender as PatientProfile["gender"],
+48:             bloodType: apiProfile.blood_type,
+49:             caregiverPhone: apiProfile.caregiver_phone,
+50:             conditions: apiProfile.conditions,
+51:             allergies: apiProfile.allergies,
+52:             smoker: apiProfile.smoker,
+53:           });
+54:         }
+55:       } catch (error) {
+56:         console.warn("Profile API unavailable, using local cache:", error);
+57: 
+58:         setProfile(
+59:           await db.profiles.where("userId").equals(patientUserId).first(),
+60:         );
+61:       }
+62:     let allVitals: Vital[] = [];
+63: 
+
+--- Lines 36 to 64 ---
+36:           throw new Error("No profile returned by backend.");
+37:         }
+38: 
+39:         if (apiProfile) {
+40:           setProfile({
+41:             id: String(apiProfile.id ?? crypto.randomUUID()),
+42:             userId: patientUserId,
+43:             nationalId: apiProfile.national_id,
+44:             age: apiProfile.age,
+45:             heightCm: apiProfile.height_cm,
+46:             weightKg: apiProfile.weight_kg,
+47:             gender: apiProfile.gender as PatientProfile["gender"],
+48:             bloodType: apiProfile.blood_type,
+49:             caregiverPhone: apiProfile.caregiver_phone,
+50:             conditions: apiProfile.conditions,
+51:             allergies: apiProfile.allergies,
+52:             smoker: apiProfile.smoker,
+53:           });
+54:         }
+55:       } catch (error) {
+56:         console.warn("Profile API unavailable, using local cache:", error);
+57: 
+58:         setProfile(
+59:           await db.profiles.where("userId").equals(patientUserId).first(),
+60:         );
+61:       }
+62:     let allVitals: Vital[] = [];
+63: 
+64:       try {
+
+--- Lines 37 to 65 ---
+37:         }
+38: 
+39:         if (apiProfile) {
+40:           setProfile({
+41:             id: String(apiProfile.id ?? crypto.randomUUID()),
+42:             userId: patientUserId,
+43:             nationalId: apiProfile.national_id,
+44:             age: apiProfile.age,
+45:             heightCm: apiProfile.height_cm,
+46:             weightKg: apiProfile.weight_kg,
+47:             gender: apiProfile.gender as PatientProfile["gender"],
+48:             bloodType: apiProfile.blood_type,
+49:             caregiverPhone: apiProfile.caregiver_phone,
+50:             conditions: apiProfile.conditions,
+51:             allergies: apiProfile.allergies,
+52:             smoker: apiProfile.smoker,
+53:           });
+54:         }
+55:       } catch (error) {
+56:         console.warn("Profile API unavailable, using local cache:", error);
+57: 
+58:         setProfile(
+59:           await db.profiles.where("userId").equals(patientUserId).first(),
+60:         );
+61:       }
+62:     let allVitals: Vital[] = [];
+63: 
+64:       try {
+65:         const backendUserId = getBackendUserId(patientUserId);
+
+--- Lines 48 to 76 ---
+48:             bloodType: apiProfile.blood_type,
+49:             caregiverPhone: apiProfile.caregiver_phone,
+50:             conditions: apiProfile.conditions,
+51:             allergies: apiProfile.allergies,
+52:             smoker: apiProfile.smoker,
+53:           });
+54:         }
+55:       } catch (error) {
+56:         console.warn("Profile API unavailable, using local cache:", error);
+57: 
+58:         setProfile(
+59:           await db.profiles.where("userId").equals(patientUserId).first(),
+60:         );
+61:       }
+62:     let allVitals: Vital[] = [];
+63: 
+64:       try {
+65:         const backendUserId = getBackendUserId(patientUserId);
+66:         if (backendUserId === null) {
+67:           throw new Error("No numeric backend user ID for this local user.");
+68:         }
+69:         const apiVitals = await apiGetVitals(backendUserId);
+70: 
+71:         allVitals = apiVitals.vitals.map((v) => ({
+72:           id: String(v.id),
+73:           patientUserId,
+74:           type: v.type as VitalType,
+75:           value: v.value,
+76:           value2: v.value2 ?? undefined,
+
+--- Lines 130 to 158 ---
+130:               <p className="text-xs text-muted">{m.schedule}</p>
+131:             </div>
+132:             <p className="text-sm text-teal">{m.dose}</p>
+133:           </div>
+134:         ))}
+135:       </section>
+136:     </div>
+137:   );
+138: }
+139: 
+140: function Hero({ name, profile }: { name: string; profile?: PatientProfile }) {
+141:   const bmi =
+142:     profile && profile.heightCm
+143:       ? (profile.weightKg / (profile.heightCm / 100) ** 2).toFixed(1)
+144:       : "â€”";
+145:   return (
+146:     <div className="rounded-[28px] p-5 text-white bg-gradient-to-br from-teal to-teal-deep">
+147:       <p className="opacity-80 text-sm">Ø³Ù„Ø§Ù…ØŒ Ø®ÙˆØ´ Ø§ÙˆÙ…Ø¯ÛŒ</p>
+148:       <h2 className="text-2xl font-extrabold mt-1">{name.split(" ")[0]} Ø¬Ø§Ù†</h2>
+149:       <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+150:         <Mini k="Ø³Ù†" v={profile?.age ?? "â€”"} />
+151:         <Mini k="Ù‚Ø¯" v={profile?.heightCm ? `${profile.heightCm}` : "â€”"} />
+152:         <Mini k="BMI" v={bmi} />
+153:       </div>
+154:     </div>
+155:   );
+156: }
+157: 
+158: function Mini({ k, v }: { k: string; v: string | number }) {
+
+--- Lines 132 to 160 ---
+132:             <p className="text-sm text-teal">{m.dose}</p>
+133:           </div>
+134:         ))}
+135:       </section>
+136:     </div>
+137:   );
+138: }
+139: 
+140: function Hero({ name, profile }: { name: string; profile?: PatientProfile }) {
+141:   const bmi =
+142:     profile && profile.heightCm
+143:       ? (profile.weightKg / (profile.heightCm / 100) ** 2).toFixed(1)
+144:       : "â€”";
+145:   return (
+146:     <div className="rounded-[28px] p-5 text-white bg-gradient-to-br from-teal to-teal-deep">
+147:       <p className="opacity-80 text-sm">Ø³Ù„Ø§Ù…ØŒ Ø®ÙˆØ´ Ø§ÙˆÙ…Ø¯ÛŒ</p>
+148:       <h2 className="text-2xl font-extrabold mt-1">{name.split(" ")[0]} Ø¬Ø§Ù†</h2>
+149:       <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+150:         <Mini k="Ø³Ù†" v={profile?.age ?? "â€”"} />
+151:         <Mini k="Ù‚Ø¯" v={profile?.heightCm ? `${profile.heightCm}` : "â€”"} />
+152:         <Mini k="BMI" v={bmi} />
+153:       </div>
+154:     </div>
+155:   );
+156: }
+157: 
+158: function Mini({ k, v }: { k: string; v: string | number }) {
+159:   return (
+160:     <div className="bg-white/15 rounded-2xl py-2">
+
+--- Lines 133 to 161 ---
+133:           </div>
+134:         ))}
+135:       </section>
+136:     </div>
+137:   );
+138: }
+139: 
+140: function Hero({ name, profile }: { name: string; profile?: PatientProfile }) {
+141:   const bmi =
+142:     profile && profile.heightCm
+143:       ? (profile.weightKg / (profile.heightCm / 100) ** 2).toFixed(1)
+144:       : "â€”";
+145:   return (
+146:     <div className="rounded-[28px] p-5 text-white bg-gradient-to-br from-teal to-teal-deep">
+147:       <p className="opacity-80 text-sm">Ø³Ù„Ø§Ù…ØŒ Ø®ÙˆØ´ Ø§ÙˆÙ…Ø¯ÛŒ</p>
+148:       <h2 className="text-2xl font-extrabold mt-1">{name.split(" ")[0]} Ø¬Ø§Ù†</h2>
+149:       <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+150:         <Mini k="Ø³Ù†" v={profile?.age ?? "â€”"} />
+151:         <Mini k="Ù‚Ø¯" v={profile?.heightCm ? `${profile.heightCm}` : "â€”"} />
+152:         <Mini k="BMI" v={bmi} />
+153:       </div>
+154:     </div>
+155:   );
+156: }
+157: 
+158: function Mini({ k, v }: { k: string; v: string | number }) {
+159:   return (
+160:     <div className="bg-white/15 rounded-2xl py-2">
+161:       <p className="text-[11px] opacity-80">{k}</p>
+
+--- Lines 141 to 169 ---
+141:   const bmi =
+142:     profile && profile.heightCm
+143:       ? (profile.weightKg / (profile.heightCm / 100) ** 2).toFixed(1)
+144:       : "â€”";
+145:   return (
+146:     <div className="rounded-[28px] p-5 text-white bg-gradient-to-br from-teal to-teal-deep">
+147:       <p className="opacity-80 text-sm">Ø³Ù„Ø§Ù…ØŒ Ø®ÙˆØ´ Ø§ÙˆÙ…Ø¯ÛŒ</p>
+148:       <h2 className="text-2xl font-extrabold mt-1">{name.split(" ")[0]} Ø¬Ø§Ù†</h2>
+149:       <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+150:         <Mini k="Ø³Ù†" v={profile?.age ?? "â€”"} />
+151:         <Mini k="Ù‚Ø¯" v={profile?.heightCm ? `${profile.heightCm}` : "â€”"} />
+152:         <Mini k="BMI" v={bmi} />
+153:       </div>
+154:     </div>
+155:   );
+156: }
+157: 
+158: function Mini({ k, v }: { k: string; v: string | number }) {
+159:   return (
+160:     <div className="bg-white/15 rounded-2xl py-2">
+161:       <p className="text-[11px] opacity-80">{k}</p>
+162:       <p className="font-bold">{v}</p>
+163:     </div>
+164:   );
+165: }
+166: 
+167: function VitalTile({ title, unit, v }: { title: string; unit: string; v?: Vital }) {
+168:   const a = v ? assessVital(v) : null;
+169:   const color = !a ? "text-muted" : a.level === "ok" ? "text-ok" : a.level === "warn" ? "text-amber-600" : "text-coral";
+
+--- Lines 274 to 302 ---
+274:               console.error("Failed to save vital to backend:", error);
+275: 
+276:               // Keep local cache as offline fallback.
+277:               await db.vitals.add(vital);
+278:             }
+279:             const alert = alertFromVital(user.id, vital);
+280:             if (alert) await db.alerts.add(alert);
+281:             navigate("/app");
+282:           }}
+283:         >
+284:           Ø°Ø®ÛŒØ±Ù‡
+285:         </button>
+286:       </div>
+287:     </div>
+288:   );
+289: }
+290: 
+291: export function PatientRecord() {
+292:   const { user } = useAuth();
+293:   const data = usePatientBundle(user?.id);
+294:   const p = data.profile;
+295:   return (
+296:     <div className="space-y-4 rise">
+297:       <h2 className="text-2xl font-extrabold">Ù¾Ø±ÙˆÙ†Ø¯Ù‡ Ù…Ù†</h2>
+298:       <div className="card rounded-3xl p-4 space-y-2 text-sm">
+299:         <Row k="Ú©Ø¯ Ù…Ù„ÛŒ" v={p?.nationalId} />
+300:         <Row k="Ø³Ù†" v={p?.age} />
+301:         <Row k="Ù‚Ø¯" v={p?.heightCm ? `${p.heightCm} Ø³Ø§Ù†ØªÛŒâ€ŒÙ…ØªØ±` : undefined} />
+302:         <Row k="ÙˆØ²Ù†" v={p?.weightKg ? `${p.weightKg} Ú©ÛŒÙ„Ùˆ` : undefined} />
+
+--- Lines 287 to 315 ---
+287:     </div>
+288:   );
+289: }
+290: 
+291: export function PatientRecord() {
+292:   const { user } = useAuth();
+293:   const data = usePatientBundle(user?.id);
+294:   const p = data.profile;
+295:   return (
+296:     <div className="space-y-4 rise">
+297:       <h2 className="text-2xl font-extrabold">Ù¾Ø±ÙˆÙ†Ø¯Ù‡ Ù…Ù†</h2>
+298:       <div className="card rounded-3xl p-4 space-y-2 text-sm">
+299:         <Row k="Ú©Ø¯ Ù…Ù„ÛŒ" v={p?.nationalId} />
+300:         <Row k="Ø³Ù†" v={p?.age} />
+301:         <Row k="Ù‚Ø¯" v={p?.heightCm ? `${p.heightCm} Ø³Ø§Ù†ØªÛŒâ€ŒÙ…ØªØ±` : undefined} />
+302:         <Row k="ÙˆØ²Ù†" v={p?.weightKg ? `${p.weightKg} Ú©ÛŒÙ„Ùˆ` : undefined} />
+303:         <Row k="Ú¯Ø±ÙˆÙ‡ Ø®ÙˆÙ†ÛŒ" v={p?.bloodType} />
+304:         <Row k="Ø´Ù…Ø§Ø±Ù‡ Ù…Ø±Ø§Ù‚Ø¨" v={p?.caregiverPhone} />
+305:         <Row k="Ø¨ÛŒÙ…Ø§Ø±ÛŒâ€ŒÙ‡Ø§" v={p?.conditions.join("ØŒ ")} />
+306:         <Row k="Ø­Ø³Ø§Ø³ÛŒØª" v={p?.allergies} />
+307:       </div>
+308:       <Notes notes={data.notes} />
+309:       <SugarChart vitals={data.vitals} />
+310:     </div>
+311:   );
+312: }
+313: 
+314: function Row({ k, v }: { k: string; v?: string | number }) {
+315:   return (
+
+--- Lines 289 to 317 ---
+289: }
+290: 
+291: export function PatientRecord() {
+292:   const { user } = useAuth();
+293:   const data = usePatientBundle(user?.id);
+294:   const p = data.profile;
+295:   return (
+296:     <div className="space-y-4 rise">
+297:       <h2 className="text-2xl font-extrabold">Ù¾Ø±ÙˆÙ†Ø¯Ù‡ Ù…Ù†</h2>
+298:       <div className="card rounded-3xl p-4 space-y-2 text-sm">
+299:         <Row k="Ú©Ø¯ Ù…Ù„ÛŒ" v={p?.nationalId} />
+300:         <Row k="Ø³Ù†" v={p?.age} />
+301:         <Row k="Ù‚Ø¯" v={p?.heightCm ? `${p.heightCm} Ø³Ø§Ù†ØªÛŒâ€ŒÙ…ØªØ±` : undefined} />
+302:         <Row k="ÙˆØ²Ù†" v={p?.weightKg ? `${p.weightKg} Ú©ÛŒÙ„Ùˆ` : undefined} />
+303:         <Row k="Ú¯Ø±ÙˆÙ‡ Ø®ÙˆÙ†ÛŒ" v={p?.bloodType} />
+304:         <Row k="Ø´Ù…Ø§Ø±Ù‡ Ù…Ø±Ø§Ù‚Ø¨" v={p?.caregiverPhone} />
+305:         <Row k="Ø¨ÛŒÙ…Ø§Ø±ÛŒâ€ŒÙ‡Ø§" v={p?.conditions.join("ØŒ ")} />
+306:         <Row k="Ø­Ø³Ø§Ø³ÛŒØª" v={p?.allergies} />
+307:       </div>
+308:       <Notes notes={data.notes} />
+309:       <SugarChart vitals={data.vitals} />
+310:     </div>
+311:   );
+312: }
+313: 
+314: function Row({ k, v }: { k: string; v?: string | number }) {
+315:   return (
+316:     <div className="flex justify-between py-2 border-b border-black/5">
+317:       <span className="text-muted">{k}</span>
+
+--- Lines 291 to 319 ---
+291: export function PatientRecord() {
+292:   const { user } = useAuth();
+293:   const data = usePatientBundle(user?.id);
+294:   const p = data.profile;
+295:   return (
+296:     <div className="space-y-4 rise">
+297:       <h2 className="text-2xl font-extrabold">Ù¾Ø±ÙˆÙ†Ø¯Ù‡ Ù…Ù†</h2>
+298:       <div className="card rounded-3xl p-4 space-y-2 text-sm">
+299:         <Row k="Ú©Ø¯ Ù…Ù„ÛŒ" v={p?.nationalId} />
+300:         <Row k="Ø³Ù†" v={p?.age} />
+301:         <Row k="Ù‚Ø¯" v={p?.heightCm ? `${p.heightCm} Ø³Ø§Ù†ØªÛŒâ€ŒÙ…ØªØ±` : undefined} />
+302:         <Row k="ÙˆØ²Ù†" v={p?.weightKg ? `${p.weightKg} Ú©ÛŒÙ„Ùˆ` : undefined} />
+303:         <Row k="Ú¯Ø±ÙˆÙ‡ Ø®ÙˆÙ†ÛŒ" v={p?.bloodType} />
+304:         <Row k="Ø´Ù…Ø§Ø±Ù‡ Ù…Ø±Ø§Ù‚Ø¨" v={p?.caregiverPhone} />
+305:         <Row k="Ø¨ÛŒÙ…Ø§Ø±ÛŒâ€ŒÙ‡Ø§" v={p?.conditions.join("ØŒ ")} />
+306:         <Row k="Ø­Ø³Ø§Ø³ÛŒØª" v={p?.allergies} />
+307:       </div>
+308:       <Notes notes={data.notes} />
+309:       <SugarChart vitals={data.vitals} />
+310:     </div>
+311:   );
+312: }
+313: 
+314: function Row({ k, v }: { k: string; v?: string | number }) {
+315:   return (
+316:     <div className="flex justify-between py-2 border-b border-black/5">
+317:       <span className="text-muted">{k}</span>
+318:       <span className="font-medium">{v || "â€”"}</span>
+319:     </div>
+
+--- Lines 292 to 320 ---
+292:   const { user } = useAuth();
+293:   const data = usePatientBundle(user?.id);
+294:   const p = data.profile;
+295:   return (
+296:     <div className="space-y-4 rise">
+297:       <h2 className="text-2xl font-extrabold">Ù¾Ø±ÙˆÙ†Ø¯Ù‡ Ù…Ù†</h2>
+298:       <div className="card rounded-3xl p-4 space-y-2 text-sm">
+299:         <Row k="Ú©Ø¯ Ù…Ù„ÛŒ" v={p?.nationalId} />
+300:         <Row k="Ø³Ù†" v={p?.age} />
+301:         <Row k="Ù‚Ø¯" v={p?.heightCm ? `${p.heightCm} Ø³Ø§Ù†ØªÛŒâ€ŒÙ…ØªØ±` : undefined} />
+302:         <Row k="ÙˆØ²Ù†" v={p?.weightKg ? `${p.weightKg} Ú©ÛŒÙ„Ùˆ` : undefined} />
+303:         <Row k="Ú¯Ø±ÙˆÙ‡ Ø®ÙˆÙ†ÛŒ" v={p?.bloodType} />
+304:         <Row k="Ø´Ù…Ø§Ø±Ù‡ Ù…Ø±Ø§Ù‚Ø¨" v={p?.caregiverPhone} />
+305:         <Row k="Ø¨ÛŒÙ…Ø§Ø±ÛŒâ€ŒÙ‡Ø§" v={p?.conditions.join("ØŒ ")} />
+306:         <Row k="Ø­Ø³Ø§Ø³ÛŒØª" v={p?.allergies} />
+307:       </div>
+308:       <Notes notes={data.notes} />
+309:       <SugarChart vitals={data.vitals} />
+310:     </div>
+311:   );
+312: }
+313: 
+314: function Row({ k, v }: { k: string; v?: string | number }) {
+315:   return (
+316:     <div className="flex justify-between py-2 border-b border-black/5">
+317:       <span className="text-muted">{k}</span>
+318:       <span className="font-medium">{v || "â€”"}</span>
+319:     </div>
+320:   );
+
+--- Lines 405 to 433 ---
+405:     <div className="flex flex-col min-h-[70vh]">
+406:       <h2 className="text-2xl font-extrabold">Ù‡Ù…Ø±Ø§Ù‡ Ù‡ÙˆØ´Ù…Ù†Ø¯</h2>
+407:       {user?.role !== "patient" && (
+408:         <select
+409:           className="mt-3 h-11 rounded-2xl bg-white px-3"
+410:           value={targetId}
+411:           onChange={(e) => setTargetId(e.target.value)}
+412:         >
+413:           {patients.map((p) => (
+414:             <option key={p.id} value={p.id}>
+415:               Ù¾Ø±ÙˆÙ†Ø¯Ù‡ {p.name}
+416:             </option>
+417:           ))}
+418:         </select>
+419:       )}
+420:       <div className="flex-1 space-y-3 mt-4">
+421:         {messages.map((m) => (
+422:           <div
+423:             key={m.id}
+424:             className={`max-w-[90%] rounded-3xl px-4 py-3 text-sm leading-7 whitespace-pre-line ${
+425:               m.role === "user" ? "mr-auto bg-teal text-white" : "ml-auto card"
+426:             }`}
+427:           >
+428:             {m.content}
+429:           </div>
+430:         ))}
+431:       </div>
+432:       <div className="flex gap-2 mt-4">
+433:         <input
+
+--- Lines 440 to 468 ---
+440:         <button onClick={send} className="h-12 px-4 rounded-2xl bg-teal text-white font-bold">
+441:           Ø¨Ù¾Ø±Ø³
+442:         </button>
+443:       </div>
+444:     </div>
+445:   );
+446: }
+447: 
+448: export function MonitorHome() {
+449:   const { user } = useAuth();
+450:   const [rows, setRows] = useState<{ patient: User; profile?: PatientProfile; last?: Vital; alerts: number }[]>([]);
+451:   const [nid, setNid] = useState("");
+452: 
+453:   async function load() {
+454:     if (!user) return;
+455:     const links = await db.links.where("fromUserId").equals(user.id).toArray();
+456:     const out = [];
+457:     for (const l of links) {
+458:       const patient = await db.users.get(l.patientUserId);
+459:       if (!patient) continue;
+460:       const profile = await db.profiles.where("userId").equals(patient.id).first();
+461:       const vitals = await db.vitals.where("patientUserId").equals(patient.id).toArray();
+462:       const last = vitals.sort((a, b) => b.at - a.at)[0];
+463:       const alerts = await db.alerts.where("patientUserId").equals(patient.id).toArray();
+464:       out.push({ patient, profile, last, alerts: alerts.filter((a) => !a.read).length });
+465:     }
+466:     setRows(out);
+467:   }
+468: 
+
+--- Lines 478 to 506 ---
+478:           <input
+479:             className="flex-1 h-12 rounded-2xl bg-white px-4"
+480:             placeholder="Ø§ÙØ²ÙˆØ¯Ù† Ø¨Ø§ Ú©Ø¯ Ù…Ù„ÛŒ"
+481:             value={nid}
+482:             onChange={(e) => setNid(e.target.value)}
+483:           />
+484:           <button
+485:             className="h-12 px-4 rounded-2xl bg-teal text-white font-bold"
+486:             onClick={async () => {
+487:               if (!user) return;
+488:               const patient = await db.users.where("nationalId").equals(nid.trim()).first();
+489:               if (!patient) return;
+490:               await db.links.add({
+491:                 id: crypto.randomUUID(),
+492:                 fromUserId: user.id,
+493:                 patientUserId: patient.id,
+494:                 relation: "Ù…Ø±Ø§Ù‚Ø¨",
+495:                 kind: "care",
+496:               });
+497:               setNid("");
+498:               load();
+499:             }}
+500:           >
+501:             Ø§ÙØ²ÙˆØ¯Ù†
+502:           </button>
+503:         </div>
+504:       )}
+505:       {rows.map((r) => (
+506:         <Link key={r.patient.id} to={`/app/patient/${r.patient.id}`} className="card rounded-3xl p-4 block">
+
+--- Lines 534 to 562 ---
+534:   const [med, setMed] = useState({ name: "", dose: "", schedule: "" });
+535: 
+536:   return (
+537:     <div className="space-y-4 rise">
+538:       <h2 className="text-2xl font-extrabold">{data.patient?.name}</h2>
+539:       <div className="grid grid-cols-2 gap-3">
+540:         <VitalTile title="Ù‚Ù†Ø¯" unit="" v={data.vitals.find((v) => v.type === "sugar")} />
+541:         <VitalTile title="ÙØ´Ø§Ø±" unit="" v={data.vitals.find((v) => v.type === "bp")} />
+542:       </div>
+543:       <div className="card rounded-3xl p-4 text-sm space-y-2">
+544:         <Row k="Ú©Ø¯ Ù…Ù„ÛŒ" v={data.profile?.nationalId} />
+545:         <Row k="Ø´Ù…Ø§Ø±Ù‡ Ù…Ø±Ø§Ù‚Ø¨" v={data.profile?.caregiverPhone} />
+546:         <Row k="ØªÙ…Ø§Ø³ Ø¨ÛŒÙ…Ø§Ø±" v={data.patient?.phone} />
+547:         <Row k="Ù‚Ø¯ / ÙˆØ²Ù†" v={`${data.profile?.heightCm} / ${data.profile?.weightKg}`} />
+548:         <Row k="Ú¯Ø±ÙˆÙ‡ Ø®ÙˆÙ†ÛŒ" v={data.profile?.bloodType} />
+549:         <Row k="Ø­Ø³Ø§Ø³ÛŒØª" v={data.profile?.allergies} />
+550:       </div>
+551:       <SugarChart vitals={data.vitals} />
+552:       <Notes notes={data.notes} />
+553:       <div className="card rounded-3xl p-4 space-y-2">
+554:         <p className="font-bold">ÛŒØ§Ø¯Ø¯Ø§Ø´Øª Ø¬Ø¯ÛŒØ¯</p>
+555:         <textarea
+556:           className="w-full h-24 rounded-2xl bg-paper p-3"
+557:           value={note}
+558:           onChange={(e) => setNote(e.target.value)}
+559:         />
+560:         <button
+561:           className="w-full h-11 rounded-2xl bg-teal text-white font-bold"
+562:           onClick={async () => {
+
+--- Lines 537 to 565 ---
+537:     <div className="space-y-4 rise">
+538:       <h2 className="text-2xl font-extrabold">{data.patient?.name}</h2>
+539:       <div className="grid grid-cols-2 gap-3">
+540:         <VitalTile title="Ù‚Ù†Ø¯" unit="" v={data.vitals.find((v) => v.type === "sugar")} />
+541:         <VitalTile title="ÙØ´Ø§Ø±" unit="" v={data.vitals.find((v) => v.type === "bp")} />
+542:       </div>
+543:       <div className="card rounded-3xl p-4 text-sm space-y-2">
+544:         <Row k="Ú©Ø¯ Ù…Ù„ÛŒ" v={data.profile?.nationalId} />
+545:         <Row k="Ø´Ù…Ø§Ø±Ù‡ Ù…Ø±Ø§Ù‚Ø¨" v={data.profile?.caregiverPhone} />
+546:         <Row k="ØªÙ…Ø§Ø³ Ø¨ÛŒÙ…Ø§Ø±" v={data.patient?.phone} />
+547:         <Row k="Ù‚Ø¯ / ÙˆØ²Ù†" v={`${data.profile?.heightCm} / ${data.profile?.weightKg}`} />
+548:         <Row k="Ú¯Ø±ÙˆÙ‡ Ø®ÙˆÙ†ÛŒ" v={data.profile?.bloodType} />
+549:         <Row k="Ø­Ø³Ø§Ø³ÛŒØª" v={data.profile?.allergies} />
+550:       </div>
+551:       <SugarChart vitals={data.vitals} />
+552:       <Notes notes={data.notes} />
+553:       <div className="card rounded-3xl p-4 space-y-2">
+554:         <p className="font-bold">ÛŒØ§Ø¯Ø¯Ø§Ø´Øª Ø¬Ø¯ÛŒØ¯</p>
+555:         <textarea
+556:           className="w-full h-24 rounded-2xl bg-paper p-3"
+557:           value={note}
+558:           onChange={(e) => setNote(e.target.value)}
+559:         />
+560:         <button
+561:           className="w-full h-11 rounded-2xl bg-teal text-white font-bold"
+562:           onClick={async () => {
+563:             if (!user || !id || !note.trim()) return;
+564:             await db.notes.add(
+565:               await sealNote({
+
+--- Lines 644 to 672 ---
+644:   const [msg, setMsg] = useState<string | null>(null);
+645:   const [err, setErr] = useState<string | null>(null);
+646:   const roleFa = user?.role === "doctor" ? "Ù¾Ø²Ø´Ú©" : user?.role === "caregiver" ? "Ù…Ø±Ø§Ù‚Ø¨" : "Ø¨ÛŒÙ…Ø§Ø±";
+647: 
+648:   return (
+649:     <div className="space-y-4 rise">
+650:       <div className="card rounded-3xl p-5 space-y-3">
+651:         <h2 className="text-2xl font-extrabold">{user?.name}</h2>
+652:         <Row k="Ù†Ù‚Ø´" v={roleFa} />
+653:         <Row k="Ù…ÙˆØ¨Ø§ÛŒÙ„" v={user?.phone} />
+654:         <Row k="Ú©Ø¯ Ù…Ù„ÛŒ" v={user?.nationalId} />
+655:         <p className="text-sm text-muted leading-7 pt-2">
+656:           Ù¾Ø§ÛŒÚ¯Ø§Ù‡ Ø¯Ø§Ø¯Ù‡ Ø±ÙˆÛŒ Ø®ÙˆØ¯ Ú¯ÙˆØ´ÛŒ Ø§Ø³Øª Ùˆ Ø¨Ù‡ Ø³Ø±ÙˆØ± Ø§ÛŒÙ†ØªØ±Ù†ØªÛŒ ÙˆØµÙ„ Ù†ÛŒØ³Øª. Ø±Ù…Ø² Ø­Ø³Ø§Ø¨ Ø¨Ø§ PBKDF2 Ù‡Ø´ Ù…ÛŒâ€ŒØ´ÙˆØ¯ØŒ ÛŒØ§Ø¯Ø¯Ø§Ø´Øª Ùˆ Ú¯ÙØªÚ¯Ùˆ Ø¨Ø§ AES-256-GCM Ø±Ù…Ø² Ù…ÛŒâ€ŒØ´ÙˆØ¯ØŒ Ù†Ø´Ø³Øª Ø§Ù…Ø¶Ø§Ø´Ø¯Ù‡ Û¸ Ø³Ø§Ø¹ØªÙ‡ Ø§Ø³Øª Ùˆ ÙˆØ±ÙˆØ¯ Ø§Ø´ØªØ¨Ø§Ù‡ Ú†Ù†Ø¯Ø¨Ø§Ø±Ù‡ Ù‚ÙÙ„ Ù…ÛŒâ€ŒØ´ÙˆØ¯. Ù¾Ø´ØªÛŒØ¨Ø§Ù† Ø§Ø¨Ø±ÛŒ Ø§Ù†Ø¯Ø±ÙˆÛŒØ¯ Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† Ø¨Ø±Ù†Ø§Ù…Ù‡ Ø®Ø§Ù…ÙˆØ´ Ø§Ø³Øª.
+657:         </p>
+658:       </div>
+659:       <form
+660:         className="card rounded-3xl p-5 space-y-3"
+661:         onSubmit={async (e) => {
+662:           e.preventDefault();
+663:           setErr(null);
+664:           setMsg(null);
+665:           const res = await changePassword(current, next);
+666:           if (res) setErr(res);
+667:           else {
+668:             setMsg("Ø±Ù…Ø² Ø¨Ø§ Ù…ÙˆÙÙ‚ÛŒØª Ø¹ÙˆØ¶ Ø´Ø¯.");
+669:             setCurrent("");
+670:             setNext("");
+671:           }
+672:         }}
+
+--- Lines 651 to 679 ---
+651:         <h2 className="text-2xl font-extrabold">{user?.name}</h2>
+652:         <Row k="Ù†Ù‚Ø´" v={roleFa} />
+653:         <Row k="Ù…ÙˆØ¨Ø§ÛŒÙ„" v={user?.phone} />
+654:         <Row k="Ú©Ø¯ Ù…Ù„ÛŒ" v={user?.nationalId} />
+655:         <p className="text-sm text-muted leading-7 pt-2">
+656:           Ù¾Ø§ÛŒÚ¯Ø§Ù‡ Ø¯Ø§Ø¯Ù‡ Ø±ÙˆÛŒ Ø®ÙˆØ¯ Ú¯ÙˆØ´ÛŒ Ø§Ø³Øª Ùˆ Ø¨Ù‡ Ø³Ø±ÙˆØ± Ø§ÛŒÙ†ØªØ±Ù†ØªÛŒ ÙˆØµÙ„ Ù†ÛŒØ³Øª. Ø±Ù…Ø² Ø­Ø³Ø§Ø¨ Ø¨Ø§ PBKDF2 Ù‡Ø´ Ù…ÛŒâ€ŒØ´ÙˆØ¯ØŒ ÛŒØ§Ø¯Ø¯Ø§Ø´Øª Ùˆ Ú¯ÙØªÚ¯Ùˆ Ø¨Ø§ AES-256-GCM Ø±Ù…Ø² Ù…ÛŒâ€ŒØ´ÙˆØ¯ØŒ Ù†Ø´Ø³Øª Ø§Ù…Ø¶Ø§Ø´Ø¯Ù‡ Û¸ Ø³Ø§Ø¹ØªÙ‡ Ø§Ø³Øª Ùˆ ÙˆØ±ÙˆØ¯ Ø§Ø´ØªØ¨Ø§Ù‡ Ú†Ù†Ø¯Ø¨Ø§Ø±Ù‡ Ù‚ÙÙ„ Ù…ÛŒâ€ŒØ´ÙˆØ¯. Ù¾Ø´ØªÛŒØ¨Ø§Ù† Ø§Ø¨Ø±ÛŒ Ø§Ù†Ø¯Ø±ÙˆÛŒØ¯ Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† Ø¨Ø±Ù†Ø§Ù…Ù‡ Ø®Ø§Ù…ÙˆØ´ Ø§Ø³Øª.
+657:         </p>
+658:       </div>
+659:       <form
+660:         className="card rounded-3xl p-5 space-y-3"
+661:         onSubmit={async (e) => {
+662:           e.preventDefault();
+663:           setErr(null);
+664:           setMsg(null);
+665:           const res = await changePassword(current, next);
+666:           if (res) setErr(res);
+667:           else {
+668:             setMsg("Ø±Ù…Ø² Ø¨Ø§ Ù…ÙˆÙÙ‚ÛŒØª Ø¹ÙˆØ¶ Ø´Ø¯.");
+669:             setCurrent("");
+670:             setNext("");
+671:           }
+672:         }}
+673:       >
+674:         <p className="font-bold">ØªØºÛŒÛŒØ± Ø±Ù…Ø² Ø­Ø³Ø§Ø¨</p>
+675:         <input
+676:           className="w-full h-12 rounded-2xl bg-paper px-4"
+677:           type="password"
+678:           placeholder="Ø±Ù…Ø² ÙØ¹Ù„ÛŒ"
+679:           value={current}
+
+--- Lines 681 to 705 ---
+681:         />
+682:         <input
+683:           className="w-full h-12 rounded-2xl bg-paper px-4"
+684:           type="password"
+685:           placeholder="Ø±Ù…Ø² Ø¬Ø¯ÛŒØ¯ (Ø­Ø¯Ø§Ù‚Ù„ Û¸ Ú©Ø§Ø±Ø§Ú©ØªØ±ØŒ Ø­Ø±Ù Ùˆ Ø¹Ø¯Ø¯)"
+686:           value={next}
+687:           onChange={(e) => setNext(e.target.value)}
+688:         />
+689:         {err && <p className="text-coral text-sm">{err}</p>}
+690:         {msg && <p className="text-ok text-sm">{msg}</p>}
+691:         <button className="w-full h-11 rounded-2xl bg-teal text-white font-bold">Ø°Ø®ÛŒØ±Ù‡ Ø±Ù…Ø² Ø¬Ø¯ÛŒØ¯</button>
+692:       </form>
+693:       <button
+694:         className="w-full h-12 rounded-2xl bg-coral text-white font-bold pressable"
+695:         onClick={() => {
+696:           logout();
+697:           navigate("/");
+698:         }}
+699:       >
+700:         Ø®Ø±ÙˆØ¬ Ø§Ø² Ø­Ø³Ø§Ø¨
+701:       </button>
+702:     </div>
+703:   );
+704: }
+705: 

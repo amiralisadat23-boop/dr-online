@@ -1,0 +1,79 @@
+﻿from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.database import init_db
+
+from app.models.user import User
+from app.models.medical import PatientProfile, Vital
+from app.models.link import UserPatientLink
+from app.models.otp import OTPCode
+
+from app.api.auth import router as auth_router
+from app.api.otp import router as otp_router
+from app.api.medical import router as medical_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+
+
+app = FastAPI(
+    title="DR-ONLINE API",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5175",
+        "http://127.0.0.1:5175",
+        "http://localhost:5176",
+        "http://127.0.0.1:5176",
+        "http://localhost:5177",
+        "http://127.0.0.1:5177",
+    ],
+    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):[0-9]+$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.middleware("http")
+async def security_headers(request, call_next):
+    response = await call_next(request)
+
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = (
+        "camera=(), microphone=(), geolocation=()"
+    )
+    response.headers["Cache-Control"] = "no-store"
+
+    return response
+
+
+@app.get("/api/health")
+async def health():
+    return {
+        "status": "ok",
+        "service": "dr-online-api",
+    }
+
+
+app.include_router(auth_router, prefix="/api")
+app.include_router(otp_router, prefix="/api")
+app.include_router(medical_router, prefix="/api")
+
+
+
+

@@ -1,0 +1,58 @@
+import { Navigate, Route, Routes } from "react-router-dom";
+import { useAuth } from "./auth";
+import { AppShell } from "./components/AppShell";
+import { Splash } from "./components/Splash";
+import { Login, Register, Welcome } from "./pages/Welcome";
+import {
+  AIChat,
+  AlertsPage,
+  LogVital,
+  MePage,
+  MonitorHome,
+  PatientDetail,
+  PatientHome,
+  PatientRecord,
+} from "./pages/AppPages";
+
+function Guard({ children }: { children: React.ReactNode }) {
+  const { user, ready } = useAuth();
+  if (!ready) return <Splash />;
+  if (!user) return <Navigate to="/" replace />;
+  return children;
+}
+
+function HomeSwitch() {
+  const { user } = useAuth();
+  if (user?.role === "patient") return <PatientHome />;
+  return <MonitorHome />;
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Welcome />} />
+      <Route path="/login/patient" element={<Login role="patient" />} />
+      <Route path="/login/caregiver" element={<Login role="caregiver" />} />
+      <Route path="/login/doctor" element={<Login role="doctor" />} />
+      <Route path="/register/patient" element={<Register role="patient" />} />
+      <Route path="/register/caregiver" element={<Register role="caregiver" />} />
+      <Route path="/register/doctor" element={<Register role="doctor" />} />
+      <Route
+        path="/app"
+        element={
+          <Guard>
+            <AppShell />
+          </Guard>
+        }
+      >
+        <Route index element={<HomeSwitch />} />
+        <Route path="log" element={<LogVital />} />
+        <Route path="ai" element={<AIChat />} />
+        <Route path="record" element={<PatientRecord />} />
+        <Route path="alerts" element={<AlertsPage />} />
+        <Route path="me" element={<MePage />} />
+        <Route path="patient/:id" element={<PatientDetail />} />
+      </Route>
+    </Routes>
+  );
+}

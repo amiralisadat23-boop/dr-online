@@ -1,0 +1,411 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20261009232705
+Username: AMIRALISADAT\amira
+RunAs User: AMIRALISADAT\amira
+Configuration Name: 
+Machine: AMIRALISADAT (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -noexit -command try { . "c:\Users\amira\AppData\Local\Programs\Microsoft VS Code\07f806f999\resources\app\out\vs\workbench\contrib\terminal\common\scripts\shellIntegration.ps1" } catch {}
+Process ID: 21500
+PSVersion: 5.1.26100.9444
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9444
+BuildVersion: 10.0.26100.9444
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Write-Host "`n========================================" -ForegroundColor Cyan
+
+========================================
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Write-Host " DR-ONLINE DATABASE DIAGNOSTICS" -ForegroundColor Cyan
+ DR-ONLINE DATABASE DIAGNOSTICS
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Write-Host "========================================" -ForegroundColor Cyan
+========================================
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) # 1. Backup configuration files without printing secrets
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Write-Host "`n=== 1. BACKUP CONFIGURATION ===" -ForegroundColor Cyan
+
+=== 1. BACKUP CONFIGURATION ===
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) foreach ($File in @(
+    "$Backend\requirements.txt",
+    "$Backend\app\database.py",
+    "$Backend\app\main.py",
+    "$Root\requirements.txt"
+)) {
+    if (Test-Path $File) {
+        $Destination = Join-Path $Backup ([IO.Path]::GetFileName($File))
+        Copy-Item $File $Destination -Force
+        Write-Host "Backed up: $File"
+    }
+}
+Backed up: C:\Users\amira\dr-online\backend\requirements.txt
+Backed up: C:\Users\amira\dr-online\backend\app\database.py
+Backed up: C:\Users\amira\dr-online\backend\app\main.py
+Backed up: C:\Users\amira\dr-online\requirements.txt
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Write-Host "Backup folder: $Backup"
+Backup folder: C:\Users\amira\Desktop\DR-Online-Database-Backup-20261009-232705
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) # 2. Check environment files without showing their values
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Write-Host "`n=== 2. ENVIRONMENT FILES ===" -ForegroundColor Cyan
+
+=== 2. ENVIRONMENT FILES ===
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) foreach ($File in @("$Root\.env", "$Backend\.env")) {
+    if (Test-Path $File) {
+        Write-Host "Found environment file: $File"
+        Write-Host "Contents intentionally hidden."
+    }
+}
+Found environment file: C:\Users\amira\dr-online\.env
+Contents intentionally hidden.
+Found environment file: C:\Users\amira\dr-online\backend\.env
+Contents intentionally hidden.
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) # 3. Show database implementation
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Write-Host "`n=== 3. DATABASE CONFIGURATION CODE ===" -ForegroundColor Cyan
+
+=== 3. DATABASE CONFIGURATION CODE ===
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) $DatabaseFile = "$Backend\app\database.py"
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) if (Test-Path $DatabaseFile) {
+    Get-Content $DatabaseFile
+} else {
+    Write-Host "database.py not found." -ForegroundColor Red
+}
+import os
+
+from dotenv import load_dotenv
+from sqlalchemy.ext.asyncio import (
+    create_async_engine,
+    async_sessionmaker,
+    AsyncSession,
+)
+from sqlalchemy.orm import DeclarativeBase
+
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not configured.")
+
+if not DATABASE_URL.startswith("postgresql+asyncpg://"):
+    raise RuntimeError(
+        "DATABASE_URL must use postgresql+asyncpg://"
+    )
+
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,
+)
+
+SessionLocal = async_sessionmaker(
+    engine,
+    expire_on_commit=False,
+)
+
+class Base(DeclarativeBase):
+    pass
+
+async def get_db():
+    async with SessionLocal() as session:
+        yield session
+
+async def init_db():
+    from app.models.user import User
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) # 4. Check dependencies
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Write-Host "`n=== 4. PYTHON DEPENDENCIES ===" -ForegroundColor Cyan
+
+=== 4. PYTHON DEPENDENCIES ===
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) if (Test-Path $Py) {
+    & $Py --version
+    & $Py -m pip check
+
+    & $Py -c "import fastapi,sqlalchemy,uvicorn; print('FastAPI:',fastapi.__version__); print('SQLAlchemy:',sqlalchemy.__version__); print('Uvicorn:',uvicorn.__version__)"
+} else {
+    Write-Host "Backend virtual environment not found." -ForegroundColor Red
+}
+
+
+
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) # 5. Check common database ports
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Write-Host "`n=== 5. DATABASE PORTS ===" -ForegroundColor Cyan
+
+=== 5. DATABASE PORTS ===
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) $Ports = @(5432, 3306, 1433, 27017)
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) foreach ($Port in $Ports) {
+    $Listeners = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+
+    if ($Listeners) {
+        foreach ($Listener in $Listeners) {
+            [PSCustomObject]@{
+                Port = $Port
+                Address = $Listener.LocalAddress
+                PID = $Listener.OwningProcess
+            }
+        }
+    } else {
+        Write-Host "Port $Port: no local listener"
+    }
+}
+At line:13 char:26
++         Write-Host "Port $Port: no local listener"
++                          ~~~~~~
+Variable reference is not valid. ':' was not followed by a valid variable name character. Consider using ${} to delimit the name.
+At line:13 char:26
++         Write-Host "Port $Port: no local listener"
++                          ~~~~~~
+Variable reference is not valid. ':' was not followed
+by a valid variable name character. Consider using
+${} to delimit the name.
+    + CategoryInfo          : ParserError: (:) [], Pa
+   rentContainsErrorRecordException
+    + FullyQualifiedErrorId : InvalidVariableReferenc
+   eWithDrive
+
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) # 6. Check common database services and processes
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Write-Host "`n=== 6. DATABASE SERVICES ===" -ForegroundColor Cyan
+
+=== 6. DATABASE SERVICES ===
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Get-Service -ErrorAction SilentlyContinue |
+    Where-Object {
+        $_.Name -match "postgres|mysql|maria|mongodb|mssql" -or
+        $_.DisplayName -match "PostgreSQL|MySQL|MariaDB|MongoDB|SQL Server"
+    } |
+    Select-Object Name, DisplayName, Status
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Get-Process -ErrorAction SilentlyContinue |
+    Where-Object { $_.ProcessName -match "postgres|mysqld|mariadbd|mongod" } |
+    Select-Object ProcessName, Id
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) # 7. Read backend error log, if present
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Write-Host "`n=== 7. BACKEND ERROR LOG ===" -ForegroundColor Cyan
+
+=== 7. BACKEND ERROR LOG ===
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) $ErrorLog = "$Backend\backend-error.log"
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) if (Test-Path $ErrorLog) {
+    Get-Content $ErrorLog -Tail 45
+} elseif (Test-Path "$Root\backend-error.log") {
+    Get-Content "$Root\backend-error.log" -Tail 45
+} else {
+    Write-Host "No previous backend error log found."
+}
+    ...<22 lines>...
+    )
+    ^
+  File "C:\Users\amira\dr-online\backend\.venv\Lib\site-packages\asyncpg\connect_utils.py", line 1307, in _connect
+    raise last_error or exceptions.TargetServerAttributeNotMatched(
+    ...<2 lines>...
+    )
+  File "C:\Users\amira\dr-online\backend\.venv\Lib\site-packages\asyncpg\connect_utils.py", line 1278, in _connect
+    conn = await _connect_addr(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\amira\dr-online\backend\.venv\Lib\site-packages\asyncpg\connect_utils.py", line 1092, in _connect_addr
+    return await __connect_addr(params, True, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\amira\dr-online\backend\.venv\Lib\site-packages\asyncpg\connect_utils.py", line 1162, in __connect_addr
+    tr, pr = await connector
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\amira\dr-online\backend\.venv\Lib\site-packages\asyncpg\connect_utils.py", line 996, in _create_ssl_connection
+    tr, pr = await loop.create_connection(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        host, port)
+        ^^^^^^^^^^^
+  File "C:\Users\amira\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 1172, in create_connection
+    raise exceptions[0]
+  File "C:\Users\amira\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 1147, in create_connection
+    sock = await self._connect_sock(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+        exceptions, addrinfo, laddr_infos)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\amira\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 1046, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "C:\Users\amira\AppData\Local\Programs\Python\Python313\Lib\asyncio\proactor_events.py", line 724, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\amira\AppData\Local\Programs\Python\Python313\Lib\asyncio\windows_events.py", line 807, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Users\amira\AppData\Local\Programs\Python\Python313\Lib\asyncio\windows_events.py", line 600, in finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+ConnectionRefusedError: [WinError 1225] The remote computer refused the network connection
+
+ERROR:    Application startup failed. Exiting.
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) # 8. Check whether the API is already running
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Write-Host "`n=== 8. API STATUS ===" -ForegroundColor Cyan
+
+=== 8. API STATUS ===
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) $Api = "http://127.0.0.1:8001"
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) $ApiAvailable = $false
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) try {
+    $Health = Invoke-RestMethod "$Api/api/health" -TimeoutSec 4
+    $Health | ConvertTo-Json -Depth 5
+    $ApiAvailable = $true
+    Write-Host "API health endpoint responded." -ForegroundColor Green
+} catch {
+    Write-Host "API is not responding on port 8001."
+}
+>> TerminatingError(Invoke-RestMethod): "Unable to connect to the remote server"
+API is not responding on port 8001.
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) # 9. Start API once if the port is free
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) if (-not $ApiAvailable) {
+    Write-Host "`n=== 9. SAFE BACKEND START ATTEMPT ===" -ForegroundColor Cyan
+
+    $PortListener = Get-NetTCPConnection -LocalPort 8001 -State Listen -ErrorAction SilentlyContinue
+
+    if ($PortListener) {
+        Write-Host "Port 8001 is occupied, but health check failed. Not starting another server." -ForegroundColor Yellow
+    } elseif (Test-Path $Py) {
+        $OutLog = "$Root\backend-diagnostic-start.log"
+        $ErrLog = "$Root\backend-diagnostic-error.log"
+
+        $Proc = Start-Process -FilePath $Py `
+            -ArgumentList @("-m","uvicorn","app.main:app","--host","127.0.0.1","--port","8001") `
+            -WorkingDirectory $Backend `
+            -RedirectStandardOutput $OutLog `
+            -RedirectStandardError $ErrLog `
+            -PassThru
+
+        Write-Host "Backend process started: PID $($Proc.Id)"
+        Start-Sleep -Seconds 4
+
+        try {
+            $Health = Invoke-RestMethod "$Api/api/health" -TimeoutSec 6
+            $Health | ConvertTo-Json -Depth 5
+            Write-Host "API is responding." -ForegroundColor Green
+        } catch {
+            Write-Host "Backend still failed to start." -ForegroundColor Red
+
+            if (Test-Path $ErrLog) {
+                Get-Content $ErrLog -Tail 45
+            }
+        }
+    }
+}
+
+=== 9. SAFE BACKEND START ATTEMPT ===
+Backend process started: PID 30588
+(.venv) TerminatingError(Invoke-RestMethod): "Unable to connect to the remote server"
+Backend still failed to start.
+INFO:     Started server process [32436]
+INFO:     Waiting for application startup.
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) # 10. Check docs and route list
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Write-Host "`n=== 10. API DOCUMENTATION ===" -ForegroundColor Cyan
+
+=== 10. API DOCUMENTATION ===
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) try {
+    $Docs = Invoke-WebRequest "$Api/docs" -UseBasicParsing -TimeoutSec 6
+    Write-Host "Docs HTTP status: $([int]$Docs.StatusCode)"
+} catch {
+    Write-Host "Docs unavailable: $($_.Exception.Message)"
+}
+>> TerminatingError(Invoke-WebRequest): "Unable to connect to the remote server"
+Docs unavailable: Unable to connect to the remote server
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) try {
+    $Spec = Invoke-RestMethod "$Api/openapi.json" -TimeoutSec 6
+    Write-Host "API title: $($Spec.info.title)"
+
+    $Spec.paths.PSObject.Properties |
+        ForEach-Object {
+            $Path = $_.Name
+            $_.Value.PSObject.Properties |
+                ForEach-Object {
+                    [PSCustomObject]@{
+                        Method = $_.Name.ToUpper()
+                        Path = $Path
+                    }
+                }
+        } | Format-Table -AutoSize
+} catch {
+    Write-Host "OpenAPI unavailable: $($_.Exception.Message)"
+}
+>> TerminatingError(Invoke-RestMethod): "Unable to connect to the remote server"
+OpenAPI unavailable: Unable to connect to the remote server
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Write-Host "`n=== FINISHED ===" -ForegroundColor Green
+
+=== FINISHED ===
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Write-Host "Report saved at: $Report"
+Report saved at: C:\Users\amira\dr-online\DR-Online-Database-Diagnostic-20261009-232705.txt
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Write-Host "Backup saved at: $Backup"
+Backup saved at: C:\Users\amira\Desktop\DR-Online-Database-Backup-20261009-232705
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5camira\x5cdr-onlinePS C:\Users\amira\dr-online> ]633;B
+(.venv) Stop-Transcript | Out-Null
+**********************
+Windows PowerShell transcript end
+End time: 20261009232723
+**********************

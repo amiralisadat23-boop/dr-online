@@ -1,0 +1,434 @@
+﻿DR-ONLINE FINAL SOURCE REVIEW
+Read-only. No database records modified.
+
+
+========== backend\app\api\medical.py ==========
+43: @router.get("/patients/{user_id}/profile")
+44: async def read_profile(
+45:     user_id: int,
+46:     current_user: User = Depends(get_current_user),
+47:     db: AsyncSession = Depends(get_db),
+48: ):
+49:     ensure_self_access(current_user, user_id)
+50: 
+51:     result = await db.execute(
+52:         select(PatientProfile).where(
+53:             PatientProfile.user_id == user_id
+54:         )
+55:     )
+56: 
+57:     profile = result.scalar_one_or_none()
+58: 
+59:     if profile is None:
+60:         return {
+61:             "status": "ok",
+62:             "profile": None,
+63:         }
+64: 
+65:     return {
+66:         "status": "ok",
+67:         "profile": {
+68:             "id": profile.id,
+69:             "user_id": profile.user_id,
+70:             "national_id": profile.national_id,
+71:             "age": profile.age,
+72:             "height_cm": profile.height_cm,
+73:             "weight_kg": profile.weight_kg,
+74:             "gender": profile.gender,
+75:             "blood_type": profile.blood_type,
+76:             "caregiver_phone": profile.caregiver_phone,
+77:             "conditions": (
+78:                 profile.conditions.split(",")
+79:                 if profile.conditions
+80:                 else []
+81:             ),
+82:             "allergies": profile.allergies or "",
+83:             "smoker": profile.smoker,
+84:         },
+85:     }
+86: 
+87: 
+88: @router.put("/patients/{user_id}/profile")
+89: async def update_profile(
+90:     user_id: int,
+91:     data: PatientProfileRequest,
+92:     current_user: User = Depends(get_current_user),
+93:     db: AsyncSession = Depends(get_db),
+94: ):
+95:     ensure_self_access(current_user, user_id)
+96: 
+97:     if data.user_id != user_id:
+98:         raise HTTPException(
+99:             status_code=status.HTTP_400_BAD_REQUEST,
+100:             detail="User ID mismatch",
+101:         )
+102: 
+103:     result = await db.execute(
+104:         select(PatientProfile).where(
+105:             PatientProfile.user_id == user_id
+106:         )
+107:     )
+108: 
+109:     profile = result.scalar_one_or_none()
+110: 
+111:     conditions_text = ",".join(data.conditions)
+112: 
+113:     if profile is None:
+114:         profile = PatientProfile(
+115:             user_id=user_id,
+116:             national_id=data.national_id,
+117:             age=data.age,
+118:             height_cm=data.height_cm,
+119:             weight_kg=data.weight_kg,
+120:             gender=data.gender,
+121:             blood_type=data.blood_type,
+122:             caregiver_phone=data.caregiver_phone,
+123:             conditions=conditions_text,
+124:             allergies=data.allergies,
+125:             smoker=data.smoker,
+126:         )
+127: 
+128:         db.add(profile)
+129: 
+130:     else:
+131:         profile.national_id = data.national_id
+132:         profile.age = data.age
+133:         profile.height_cm = data.height_cm
+134:         profile.weight_kg = data.weight_kg
+135:         profile.gender = data.gender
+136:         profile.blood_type = data.blood_type
+137:         profile.caregiver_phone = data.caregiver_phone
+138:         profile.conditions = conditions_text
+139:         profile.allergies = data.allergies
+140:         profile.smoker = data.smoker
+141: 
+142:     await db.commit()
+143:     await db.refresh(profile)
+144: 
+145:     return {
+146:         "status": "ok",
+147:         "profile": {
+148:             "id": profile.id,
+149:             "user_id": profile.user_id,
+150:             "national_id": profile.national_id,
+151:             "age": profile.age,
+152:             "height_cm": profile.height_cm,
+153:             "weight_kg": profile.weight_kg,
+154:             "gender": profile.gender,
+155:             "blood_type": profile.blood_type,
+156:             "caregiver_phone": profile.caregiver_phone,
+157:             "conditions": data.conditions,
+158:             "allergies": profile.allergies or "",
+159:             "smoker": profile.smoker,
+160:         },
+161:     }
+162: 
+163: 
+
+========== backend\app\security\jwt.py ==========
+1: import os
+2: from datetime import datetime, timedelta, timezone
+3: from typing import Any
+4: 
+5: from dotenv import load_dotenv
+6: 
+7: load_dotenv()
+8: 
+9: import jwt
+10: 
+11: from fastapi import Depends, HTTPException, status
+12: from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+13: 
+14: from sqlalchemy import select
+15: from sqlalchemy.ext.asyncio import AsyncSession
+16: 
+17: from app.database import get_db
+18: from app.models.user import User
+19: 
+20: 
+21: ALGORITHM = "HS256"
+22: 
+23: [SENSITIVE LINE OMITTED]
+24: 
+25: [SENSITIVE LINE OMITTED]
+26:     raise RuntimeError(
+27: [SENSITIVE LINE OMITTED]
+28:     )
+29: 
+30: TOKEN_EXPIRE_MINUTES = int(
+31:     os.getenv(
+32:         "DR_ONLINE_JWT_EXPIRE_MINUTES",
+33:         "480",
+34:     )
+35: )
+36: 
+37: bearer = HTTPBearer(auto_error=False)
+38: 
+39: 
+40: def create_access_token(user: User) -> str:
+41:     now = datetime.now(timezone.utc)
+42: 
+43:     payload = {
+44:         "sub": str(user.id),
+45:         "role": str(user.role),
+46:         "iat": int(now.timestamp()),
+47:         "exp": int(
+48:             (
+49:                 now
+50:                 + timedelta(
+51:                     minutes=TOKEN_EXPIRE_MINUTES
+52:                 )
+53:             ).timestamp()
+54:         ),
+55:     }
+56: 
+57:     return jwt.encode(
+58:         payload,
+59: [SENSITIVE LINE OMITTED]
+60:         algorithm=ALGORITHM,
+61:     )
+62: 
+63: 
+64: def decode_access_token(token: str) -> dict[str, Any]:
+65:     try:
+66:         return jwt.decode(
+67:             token,
+68: [SENSITIVE LINE OMITTED]
+69:             algorithms=[ALGORITHM],
+70:         )
+71: 
+72:     except jwt.ExpiredSignatureError:
+73:         raise HTTPException(
+74:             status_code=status.HTTP_401_UNAUTHORIZED,
+75:             detail="Token expired",
+76:         )
+77: 
+78:     except jwt.InvalidTokenError:
+79:         raise HTTPException(
+80:             status_code=status.HTTP_401_UNAUTHORIZED,
+81:             detail="Invalid token",
+82:         )
+83: 
+84: 
+85: async def get_current_user(
+86:     credentials: HTTPAuthorizationCredentials | None = Depends(
+87:         bearer
+88:     ),
+89:     db: AsyncSession = Depends(get_db),
+90: ) -> User:
+91: 
+92:     if credentials is None:
+93:         raise HTTPException(
+94:             status_code=status.HTTP_401_UNAUTHORIZED,
+95:             detail="Authentication required",
+96:         )
+97: 
+98:     payload = decode_access_token(
+99:         credentials.credentials
+100:     )
+101: 
+102:     subject = payload.get("sub")
+103: 
+104:     if not subject:
+105:         raise HTTPException(
+106:             status_code=status.HTTP_401_UNAUTHORIZED,
+107:             detail="Invalid token",
+108:         )
+109: 
+110:     try:
+111:         user_id = int(subject)
+112:     except (TypeError, ValueError):
+113:         raise HTTPException(
+114:             status_code=status.HTTP_401_UNAUTHORIZED,
+115:             detail="Invalid user id",
+116:         )
+117: 
+118:     result = await db.execute(
+119:         select(User).where(
+120:             User.id == user_id
+121:         )
+122:     )
+123: 
+124:     user = result.scalar_one_or_none()
+125: 
+126:     if user is None:
+127:         raise HTTPException(
+128:             status_code=status.HTTP_401_UNAUTHORIZED,
+129:             detail="User not found",
+130:         )
+131: 
+132:     return user
+133: 
+134: 
+135: def ensure_self_access(
+136:     current_user: User,
+137:     requested_user_id: int,
+138: ):
+139:     if current_user.id != requested_user_id:
+140:         raise HTTPException(
+141:             status_code=status.HTTP_403_FORBIDDEN,
+142:             detail="Access to another user's medical data is forbidden",
+143:         )
+144: 
+145: 
+146: def require_roles(*roles):
+147: 
+148:     async def dependency(
+149:         current_user: User = Depends(
+150:             get_current_user
+151:         ),
+152:     ):
+153: 
+154:         if str(current_user.role) not in roles:
+155:             raise HTTPException(
+156:                 status_code=status.HTTP_403_FORBIDDEN,
+157:                 detail="Insufficient permissions",
+158:             )
+159: 
+160:         return current_user
+161: 
+162:     return dependency
+
+========== src\pages\AppPages.tsx ==========
+17: function usePatientBundle(patientUserId?: string) {
+18:   const [profile, setProfile] = useState<PatientProfile | undefined>();
+19:   const [patient, setPatient] = useState<User | undefined>();
+20:   const [vitals, setVitals] = useState<Vital[]>([]);
+21:   const [meds, setMeds] = useState<Medication[]>([]);
+22:   const [notes, setNotes] = useState<Note[]>([]);
+23:   const [alerts, setAlerts] = useState<Alert[]>([]);
+24: 
+25:   async function reload() {
+26:     if (!patientUserId) return;
+27:     setPatient(await db.users.get(patientUserId));
+28:     try {
+29:         const backendUserId = getBackendUserId(patientUserId);
+30:         if (backendUserId === null) {
+31:           throw new Error("No numeric backend user ID for this local user.");
+32:         }
+33:         const apiProfileResponse = await apiGetProfile(backendUserId);
+34:         const apiProfile = apiProfileResponse?.profile;
+35:         if (!apiProfile) {
+36:           throw new Error("No profile returned by backend.");
+37:         }
+38: 
+39:         if (apiProfile) {
+40:           setProfile({
+41:             id: String(apiProfile.id ?? crypto.randomUUID()),
+42:             userId: patientUserId,
+43:             nationalId: apiProfile.national_id,
+44:             age: apiProfile.age,
+45:             heightCm: apiProfile.height_cm,
+46:             weightKg: apiProfile.weight_kg,
+47:             gender: apiProfile.gender as PatientProfile["gender"],
+48:             bloodType: apiProfile.blood_type,
+49:             caregiverPhone: apiProfile.caregiver_phone,
+50:             conditions: apiProfile.conditions,
+51:             allergies: apiProfile.allergies,
+52:             smoker: apiProfile.smoker,
+53:           });
+54:         }
+55:       } catch (error) {
+56:         console.warn("Profile API unavailable, using local cache:", error);
+57: 
+58:         setProfile(
+59:           await db.profiles.where("userId").equals(patientUserId).first(),
+60:         );
+61:       }
+62:     let allVitals: Vital[] = [];
+63: 
+64:       try {
+65:         const backendUserId = getBackendUserId(patientUserId);
+66:         if (backendUserId === null) {
+67:           throw new Error("No numeric backend user ID for this local user.");
+68:         }
+69:         const apiVitals = await apiGetVitals(backendUserId);
+70: 
+71:         allVitals = apiVitals.vitals.map((v) => ({
+72:           id: String(v.id),
+73:           patientUserId,
+74:           type: v.type as VitalType,
+75:           value: v.value,
+76:           value2: v.value2 ?? undefined,
+77:           context: v.context ?? undefined,
+78:           at: Date.parse(v.recorded_at),
+79:         }));
+80:       } catch (error) {
+81:         console.warn("Vitals API unavailable, using local cache:", error);
+82: 
+83:         allVitals = await db.vitals
+84:           .where("patientUserId")
+85:           .equals(patientUserId)
+86:           .toArray();
+87:       }
+88:     setVitals(allVitals.sort((a, b) => b.at - a.at));
+89:     setMeds(await db.medications.where("patientUserId").equals(patientUserId).toArray());
+90:     setNotes(
+91:       (
+92:         await Promise.all(
+93:           (await db.notes.where("patientUserId").equals(patientUserId).toArray()).map(openNote),
+94:         )
+95:       ).sort((a, b) => b.at - a.at),
+96:     );
+97:     setAlerts((await db.alerts.where("patientUserId").equals(patientUserId).toArray()).sort((a, b) => b.at - a.at));
+98:   }
+99: 
+100:   useEffect(() => {
+101:     reload();
+102:   }, [patientUserId]);
+103: 
+104:   return { profile, patient, vitals, meds, notes, alerts, reload };
+105: }
+
+========== src\api.ts ==========
+130:         name,
+131:         phone,
+132: [SENSITIVE LINE OMITTED]
+133:         role,
+134:       }),
+135:     }
+136:   );
+137: }
+138: 
+139: 
+140: export async function apiMe() {
+141:   return request(
+142:     "/api/auth/me"
+143:   );
+144: }
+145: 
+146: 
+147: export async function apiGetProfile(
+148:   userId: number
+149: ) {
+150:   return request(
+151:     `/api/medical/patients/${userId}/profile`
+152:   );
+153: }
+154: 
+155: 
+156: export async function apiSaveProfile(
+157:   userId: number,
+158:   profile: unknown
+159: ) {
+160:   return request(
+161:     `/api/medical/patients/${userId}/profile`,
+162:     {
+163:       method: "PUT",
+164:       body: JSON.stringify({
+165:         ...(profile as object),
+166:         user_id: userId,
+167:       }),
+168:     }
+169:   );
+170: }
+171: 
+172: 
+173: export type ApiVital = {
+174:   id: number | string;
+175:   type: string;
+176:   value: number;
+177:   value2?: number | null;
+178:   context?: string | null;
+179:   recorded_at: string;
+180: };

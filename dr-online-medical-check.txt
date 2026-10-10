@@ -1,0 +1,772 @@
+﻿DR-ONLINE MEDICAL DIAGNOSTIC
+Date: 2026-10-09 03:25:49
+Project: C:\Users\amira\dr-online
+Read-only check. No application files or database records modified.
+
+===== FRONTEND SEARCH =====
+C:\Users\amira\dr-online\src\api.ts:2: import.meta.env.VITE_API_URL ||
+C:\Users\amira\dr-online\src\api.ts:147: export async function apiGetProfile(
+C:\Users\amira\dr-online\src\api.ts:156: export async function apiSaveProfile(
+C:\Users\amira\dr-online\src\App.tsx:15: PatientRecord,
+C:\Users\amira\dr-online\src\App.tsx:52: <Route path="record" element={<PatientRecord />} />
+C:\Users\amira\dr-online\src\pages\AppPages.tsx:9: import { apiGetProfile, apiSaveProfile, apiGetVitals, apiAddVital } from "../api";
+C:\Users\amira\dr-online\src\pages\AppPages.tsx:17: function usePatientBundle(patientUserId?: string) {
+C:\Users\amira\dr-online\src\pages\AppPages.tsx:33: const apiProfileResponse = await apiGetProfile(backendUserId);
+C:\Users\amira\dr-online\src\pages\AppPages.tsx:109: const data = usePatientBundle(user?.id);
+C:\Users\amira\dr-online\src\pages\AppPages.tsx:291: export function PatientRecord() {
+C:\Users\amira\dr-online\src\pages\AppPages.tsx:293: const data = usePatientBundle(user?.id);
+C:\Users\amira\dr-online\src\pages\AppPages.tsx:532: const data = usePatientBundle(id);
+
+===== C:\Users\amira\dr-online\backend\app\api\medical.py =====
+   1: from datetime import datetime, timezone
+   2: from typing import Optional
+   3: 
+   4: from fastapi import APIRouter, Depends, HTTPException, status
+   5: from pydantic import BaseModel
+   6: from sqlalchemy import select
+   7: from sqlalchemy.ext.asyncio import AsyncSession
+   8: 
+   9: from app.database import get_db
+  10: from app.models.medical import PatientProfile, Vital
+  11: from app.models.user import User
+  12: from app.security.jwt import get_current_user, ensure_self_access
+  13: 
+  14: 
+  15: router = APIRouter(
+  16:     prefix="/medical",
+  17:     tags=["Medical"],
+  18: )
+  19: 
+  20: 
+  21: class PatientProfileRequest(BaseModel):
+  22:     user_id: int
+  23:     national_id: str
+  24:     age: int
+  25:     height_cm: float
+  26:     weight_kg: float
+  27:     gender: str
+  28:     blood_type: str
+  29:     caregiver_phone: str
+  30:     conditions: list[str] = []
+  31:     allergies: str = ""
+  32:     smoker: bool = False
+  33: 
+  34: 
+  35: class VitalRequest(BaseModel):
+  36:     patient_user_id: int
+  37:     type: str
+  38:     value: float
+  39:     value2: Optional[float] = None
+  40:     context: Optional[str] = None
+  41: 
+  42: 
+  43: @router.get("/patients/{user_id}/profile")
+  44: async def read_profile(
+  45:     user_id: int,
+  46:     current_user: User = Depends(get_current_user),
+  47:     db: AsyncSession = Depends(get_db),
+  48: ):
+  49:     ensure_self_access(current_user, user_id)
+  50: 
+  51:     result = await db.execute(
+  52:         select(PatientProfile).where(
+  53:             PatientProfile.user_id == user_id
+  54:         )
+  55:     )
+  56: 
+  57:     profile = result.scalar_one_or_none()
+  58: 
+  59:     if profile is None:
+  60:         return {
+  61:             "status": "ok",
+  62:             "profile": None,
+  63:         }
+  64: 
+  65:     return {
+  66:         "status": "ok",
+  67:         "profile": {
+  68:             "id": profile.id,
+  69:             "user_id": profile.user_id,
+  70:             "national_id": profile.national_id,
+  71:             "age": profile.age,
+  72:             "height_cm": profile.height_cm,
+  73:             "weight_kg": profile.weight_kg,
+  74:             "gender": profile.gender,
+  75:             "blood_type": profile.blood_type,
+  76:             "caregiver_phone": profile.caregiver_phone,
+  77:             "conditions": (
+  78:                 profile.conditions.split(",")
+  79:                 if profile.conditions
+  80:                 else []
+  81:             ),
+  82:             "allergies": profile.allergies or "",
+  83:             "smoker": profile.smoker,
+  84:         },
+  85:     }
+  86: 
+  87: 
+  88: @router.put("/patients/{user_id}/profile")
+  89: async def update_profile(
+  90:     user_id: int,
+  91:     data: PatientProfileRequest,
+  92:     current_user: User = Depends(get_current_user),
+  93:     db: AsyncSession = Depends(get_db),
+  94: ):
+  95:     ensure_self_access(current_user, user_id)
+  96: 
+  97:     if data.user_id != user_id:
+  98:         raise HTTPException(
+  99:             status_code=status.HTTP_400_BAD_REQUEST,
+ 100:             detail="User ID mismatch",
+ 101:         )
+ 102: 
+ 103:     result = await db.execute(
+ 104:         select(PatientProfile).where(
+ 105:             PatientProfile.user_id == user_id
+ 106:         )
+ 107:     )
+ 108: 
+ 109:     profile = result.scalar_one_or_none()
+ 110: 
+ 111:     conditions_text = ",".join(data.conditions)
+ 112: 
+ 113:     if profile is None:
+ 114:         profile = PatientProfile(
+ 115:             user_id=user_id,
+ 116:             national_id=data.national_id,
+ 117:             age=data.age,
+ 118:             height_cm=data.height_cm,
+ 119:             weight_kg=data.weight_kg,
+ 120:             gender=data.gender,
+ 121:             blood_type=data.blood_type,
+ 122:             caregiver_phone=data.caregiver_phone,
+ 123:             conditions=conditions_text,
+ 124:             allergies=data.allergies,
+ 125:             smoker=data.smoker,
+ 126:         )
+ 127: 
+ 128:         db.add(profile)
+ 129: 
+ 130:     else:
+ 131:         profile.national_id = data.national_id
+ 132:         profile.age = data.age
+ 133:         profile.height_cm = data.height_cm
+ 134:         profile.weight_kg = data.weight_kg
+ 135:         profile.gender = data.gender
+ 136:         profile.blood_type = data.blood_type
+ 137:         profile.caregiver_phone = data.caregiver_phone
+ 138:         profile.conditions = conditions_text
+ 139:         profile.allergies = data.allergies
+ 140:         profile.smoker = data.smoker
+ 141: 
+ 142:     await db.commit()
+ 143:     await db.refresh(profile)
+ 144: 
+ 145:     return {
+ 146:         "status": "ok",
+ 147:         "profile": {
+ 148:             "id": profile.id,
+ 149:             "user_id": profile.user_id,
+ 150:             "national_id": profile.national_id,
+ 151:             "age": profile.age,
+ 152:             "height_cm": profile.height_cm,
+ 153:             "weight_kg": profile.weight_kg,
+ 154:             "gender": profile.gender,
+ 155:             "blood_type": profile.blood_type,
+ 156:             "caregiver_phone": profile.caregiver_phone,
+ 157:             "conditions": data.conditions,
+ 158:             "allergies": profile.allergies or "",
+ 159:             "smoker": profile.smoker,
+ 160:         },
+ 161:     }
+ 162: 
+ 163: 
+ 164: @router.post("/vitals")
+ 165: async def create_vital(
+ 166:     data: VitalRequest,
+ 167:     current_user: User = Depends(get_current_user),
+ 168:     db: AsyncSession = Depends(get_db),
+ 169: ):
+ 170:     ensure_self_access(current_user, data.patient_user_id)
+ 171: 
+ 172:     vital = Vital(
+ 173:         patient_user_id=data.patient_user_id,
+ 174:         type=data.type,
+ 175:         value=data.value,
+ 176:         value2=data.value2,
+ 177:         context=data.context,
+ 178:         recorded_at=datetime.now(timezone.utc).isoformat(),
+ 179:     )
+ 180: 
+... file continues; showing lines 1-180 of 230
+
+===== C:\Users\amira\dr-online\backend\app\medical_db.py =====
+   1: import sqlite3
+   2: from pathlib import Path
+   3: from typing import Optional
+   4: 
+   5: DB_PATH = Path(__file__).resolve().parent.parent / "medical_data.db"
+   6: 
+   7: 
+   8: def get_connection():
+   9:     connection = sqlite3.connect(DB_PATH)
+  10:     connection.row_factory = sqlite3.Row
+  11:     return connection
+  12: 
+  13: 
+  14: def init_medical_db():
+  15:     connection = get_connection()
+  16: 
+  17:     connection.execute(
+  18:         """
+  19:         CREATE TABLE IF NOT EXISTS patient_profiles (
+  20:             id INTEGER PRIMARY KEY AUTOINCREMENT,
+  21:             user_id INTEGER NOT NULL UNIQUE,
+  22:             national_id TEXT,
+  23:             age INTEGER,
+  24:             height_cm REAL,
+  25:             weight_kg REAL,
+  26:             gender TEXT,
+  27:             blood_type TEXT,
+  28:             caregiver_phone TEXT,
+  29:             conditions TEXT,
+  30:             allergies TEXT,
+  31:             smoker INTEGER DEFAULT 0
+  32:         )
+  33:         """
+  34:     )
+  35: 
+  36:     connection.execute(
+  37:         """
+  38:         CREATE TABLE IF NOT EXISTS vitals (
+  39:             id INTEGER PRIMARY KEY AUTOINCREMENT,
+  40:             patient_user_id INTEGER NOT NULL,
+  41:             type TEXT NOT NULL,
+  42:             value REAL NOT NULL,
+  43:             value2 REAL,
+  44:             context TEXT,
+  45:             recorded_at TEXT NOT NULL
+  46:         )
+  47:         """
+  48:     )
+  49: 
+  50:     connection.commit()
+  51:     connection.close()
+  52: 
+  53: 
+  54: def get_profile(user_id: int):
+  55:     connection = get_connection()
+  56: 
+  57:     row = connection.execute(
+  58:         """
+  59:         SELECT *
+  60:         FROM patient_profiles
+  61:         WHERE user_id = ?
+  62:         """,
+  63:         (user_id,),
+  64:     ).fetchone()
+  65: 
+  66:     connection.close()
+  67: 
+  68:     return dict(row) if row else None
+  69: 
+  70: 
+  71: def save_profile(
+  72:     user_id: int,
+  73:     national_id: Optional[str] = None,
+  74:     age: Optional[int] = None,
+  75:     height_cm: Optional[float] = None,
+  76:     weight_kg: Optional[float] = None,
+  77:     gender: Optional[str] = None,
+  78:     blood_type: Optional[str] = None,
+  79:     caregiver_phone: Optional[str] = None,
+  80:     conditions: Optional[str] = None,
+  81:     allergies: Optional[str] = None,
+  82:     smoker: bool = False,
+  83: ):
+  84:     connection = get_connection()
+  85: 
+  86:     connection.execute(
+  87:         """
+  88:         INSERT INTO patient_profiles (
+  89:             user_id,
+  90:             national_id,
+  91:             age,
+  92:             height_cm,
+  93:             weight_kg,
+  94:             gender,
+  95:             blood_type,
+  96:             caregiver_phone,
+  97:             conditions,
+  98:             allergies,
+  99:             smoker
+ 100:         )
+ 101:         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ 102:         ON CONFLICT(user_id)
+ 103:         DO UPDATE SET
+ 104:             national_id = excluded.national_id,
+ 105:             age = excluded.age,
+ 106:             height_cm = excluded.height_cm,
+ 107:             weight_kg = excluded.weight_kg,
+ 108:             gender = excluded.gender,
+ 109:             blood_type = excluded.blood_type,
+ 110:             caregiver_phone = excluded.caregiver_phone,
+ 111:             conditions = excluded.conditions,
+ 112:             allergies = excluded.allergies,
+ 113:             smoker = excluded.smoker
+ 114:         """,
+ 115:         (
+ 116:             user_id,
+ 117:             national_id,
+ 118:             age,
+ 119:             height_cm,
+ 120:             weight_kg,
+ 121:             gender,
+ 122:             blood_type,
+ 123:             caregiver_phone,
+ 124:             conditions,
+ 125:             allergies,
+ 126:             int(smoker),
+ 127:         ),
+ 128:     )
+ 129: 
+ 130:     connection.commit()
+ 131: 
+ 132:     row = connection.execute(
+ 133:         """
+ 134:         SELECT *
+ 135:         FROM patient_profiles
+ 136:         WHERE user_id = ?
+ 137:         """,
+ 138:         (user_id,),
+ 139:     ).fetchone()
+ 140: 
+ 141:     connection.close()
+ 142: 
+ 143:     return dict(row)
+ 144: 
+ 145: 
+ 146: def add_vital(
+ 147:     patient_user_id: int,
+ 148:     vital_type: str,
+ 149:     value: float,
+ 150:     value2: Optional[float],
+ 151:     context: Optional[str],
+ 152:     recorded_at: str,
+ 153: ):
+ 154:     connection = get_connection()
+ 155: 
+ 156:     cursor = connection.execute(
+ 157:         """
+ 158:         INSERT INTO vitals (
+ 159:             patient_user_id,
+ 160:             type,
+ 161:             value,
+ 162:             value2,
+ 163:             context,
+ 164:             recorded_at
+ 165:         )
+ 166:         VALUES (?, ?, ?, ?, ?, ?)
+ 167:         """,
+ 168:         (
+ 169:             patient_user_id,
+ 170:             vital_type,
+ 171:             value,
+ 172:             value2,
+ 173:             context,
+ 174:             recorded_at,
+ 175:         ),
+ 176:     )
+ 177: 
+ 178:     connection.commit()
+ 179: 
+ 180:     row = connection.execute(
+... file continues; showing lines 1-180 of 209
+
+===== C:\Users\amira\dr-online\backend\app\database.py =====
+   1: import os
+   2: 
+   3: from dotenv import load_dotenv
+   4: from sqlalchemy.ext.asyncio import (
+   5:     create_async_engine,
+   6:     async_sessionmaker,
+   7:     AsyncSession,
+   8: )
+   9: from sqlalchemy.orm import DeclarativeBase
+  10: 
+  11: load_dotenv()
+  12: 
+  13: DATABASE_URL=[REDACTED]
+  14: 
+  15: if not DATABASE_URL:
+  16:     raise RuntimeError("[REDACTED]")
+  17: 
+  18: if not DATABASE_URL.startswith("[REDACTED]"):
+  19:     raise RuntimeError(
+  20:         "[REDACTED]"
+  21:     )
+  22: 
+  23: engine = create_async_engine(
+  24:     DATABASE_URL,
+  25:     echo=False,
+  26:     pool_pre_ping=True,
+  27: )
+  28: 
+  29: SessionLocal = async_sessionmaker(
+  30:     engine,
+  31:     expire_on_commit=False,
+  32: )
+  33: 
+  34: class Base(DeclarativeBase):
+  35:     pass
+  36: 
+  37: async def get_db():
+  38:     async with SessionLocal() as session:
+  39:         yield session
+  40: 
+  41: async def init_db():
+  42:     from app.models.user import User
+  43: 
+  44:     async with engine.begin() as conn:
+  45:         await conn.run_sync(Base.metadata.create_all)
+
+===== C:\Users\amira\dr-online\backend\app\main.py =====
+   1: from contextlib import asynccontextmanager
+   2: 
+   3: from fastapi import FastAPI
+   4: from fastapi.middleware.cors import CORSMiddleware
+   5: 
+   6: from app.database import init_db
+   7: 
+   8: from app.models.user import User
+   9: from app.models.medical import PatientProfile, Vital
+  10: from app.models.link import UserPatientLink
+  11: from app.models.otp import OTPCode
+  12: 
+  13: from app.api.auth import router as auth_router
+  14: from app.api.otp import router as otp_router
+  15: from app.api.medical import router as medical_router
+  16: 
+  17: 
+  18: @asynccontextmanager
+  19: async def lifespan(app: FastAPI):
+  20:     await init_db()
+  21:     yield
+  22: 
+  23: 
+  24: app = FastAPI(
+  25:     title="DR-ONLINE API",
+  26:     version="1.0.0",
+  27:     lifespan=lifespan,
+  28: )
+  29: 
+  30: 
+  31: app.add_middleware(
+  32:     CORSMiddleware,
+  33:     allow_origins=[
+  34:         "http://localhost:5173",
+  35:         "http://127.0.0.1:5173",
+  36:         "http://localhost:5175",
+  37:         "http://127.0.0.1:5175",
+  38:         "http://localhost:5176",
+  39:         "http://127.0.0.1:5176",
+  40:         "http://localhost:5177",
+  41:         "http://127.0.0.1:5177",
+  42:     ],
+  43:     allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):[0-9]+$",
+  44:     allow_credentials=True,
+  45:     allow_methods=["*"],
+  46:     allow_headers=["*"],
+  47: )
+  48: 
+  49: 
+  50: @app.middleware("http")
+  51: async def security_headers(request, call_next):
+  52:     response = await call_next(request)
+  53: 
+  54:     response.headers["X-Content-Type-Options"] = "nosniff"
+  55:     response.headers["X-Frame-Options"] = "DENY"
+  56:     response.headers["Referrer-Policy"] = "no-referrer"
+  57:     response.headers["Permissions-Policy"] = (
+  58:         "camera=(), microphone=(), geolocation=()"
+  59:     )
+  60:     response.headers["Cache-Control"] = "no-store"
+  61: 
+  62:     return response
+  63: 
+  64: 
+  65: @app.get("/api/health")
+  66: async def health():
+  67:     return {
+  68:         "status": "ok",
+  69:         "service": "dr-online-api",
+  70:     }
+  71: 
+  72: 
+  73: app.include_router(auth_router, prefix="/api")
+  74: app.include_router(otp_router, prefix="/api")
+  75: app.include_router(medical_router, prefix="/api")
+  76: 
+  77: 
+  78: 
+  79: 
+
+===== PATIENT BUNDLE IMPLEMENTATION =====
+
+===== C:\Users\amira\dr-online\src\pages\AppPages.tsx =====
+   1: import { useEffect, useMemo, useState } from "react";
+   2: import { Link, useNavigate, useParams } from "react-router-dom";
+   3: import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
+   4: import { db, openChat, openNote, sealChat, sealNote } from "../db";
+   5: import { useAuth } from "../auth";
+   6: import { alertFromVital, assessVital, assistantReply } from "../ai";
+   7: import type { Alert, ChatMessage, Medication, Note, PatientProfile, User, Vital, VitalType } from "../types";
+   8: 
+   9: import { apiGetProfile, apiSaveProfile, apiGetVitals, apiAddVital } from "../api";
+  10: 
+  11: function getBackendUserId(localId: string): number | null {
+  12:   const match = /^api-(\d+)$/.exec(localId);
+  13:   if (!match) return null;
+  14:   const id = Number(match[1]);
+  15:   return Number.isSafeInteger(id) && id > 0 ? id : null;
+  16: }
+  17: function usePatientBundle(patientUserId?: string) {
+  18:   const [profile, setProfile] = useState<PatientProfile | undefined>();
+  19:   const [patient, setPatient] = useState<User | undefined>();
+  20:   const [vitals, setVitals] = useState<Vital[]>([]);
+  21:   const [meds, setMeds] = useState<Medication[]>([]);
+  22:   const [notes, setNotes] = useState<Note[]>([]);
+  23:   const [alerts, setAlerts] = useState<Alert[]>([]);
+  24: 
+  25:   async function reload() {
+  26:     if (!patientUserId) return;
+  27:     setPatient(await db.users.get(patientUserId));
+  28:     try {
+  29:         const backendUserId = getBackendUserId(patientUserId);
+  30:         if (backendUserId === null) {
+  31:           throw new Error("No numeric backend user ID for this local user.");
+  32:         }
+  33:         const apiProfileResponse = await apiGetProfile(backendUserId);
+  34:         const apiProfile = apiProfileResponse?.profile;
+  35:         if (!apiProfile) {
+  36:           throw new Error("No profile returned by backend.");
+  37:         }
+  38: 
+  39:         if (apiProfile) {
+  40:           setProfile({
+  41:             id: String(apiProfile.id ?? crypto.randomUUID()),
+  42:             userId: patientUserId,
+  43:             nationalId: apiProfile.national_id,
+  44:             age: apiProfile.age,
+  45:             heightCm: apiProfile.height_cm,
+  46:             weightKg: apiProfile.weight_kg,
+  47:             gender: apiProfile.gender as PatientProfile["gender"],
+  48:             bloodType: apiProfile.blood_type,
+  49:             caregiverPhone: apiProfile.caregiver_phone,
+  50:             conditions: apiProfile.conditions,
+  51:             allergies: apiProfile.allergies,
+  52:             smoker: apiProfile.smoker,
+  53:           });
+  54:         }
+  55:       } catch (error) {
+  56:         console.warn("Profile API unavailable, using local cache:", error);
+  57: 
+  58:         setProfile(
+  59:           await db.profiles.where("userId").equals(patientUserId).first(),
+  60:         );
+  61:       }
+  62:     let allVitals: Vital[] = [];
+  63: 
+  64:       try {
+  65:         const backendUserId = getBackendUserId(patientUserId);
+  66:         if (backendUserId === null) {
+  67:           throw new Error("No numeric backend user ID for this local user.");
+  68:         }
+  69:         const apiVitals = await apiGetVitals(backendUserId);
+  70: 
+  71:         allVitals = apiVitals.vitals.map((v) => ({
+  72:           id: String(v.id),
+  73:           patientUserId,
+  74:           type: v.type as VitalType,
+  75:           value: v.value,
+  76:           value2: v.value2 ?? undefined,
+  77:           context: v.context ?? undefined,
+  78:           at: Date.parse(v.recorded_at),
+  79:         }));
+  80:       } catch (error) {
+  81:         console.warn("Vitals API unavailable, using local cache:", error);
+  82: 
+  83:         allVitals = await db.vitals
+  84:           .where("patientUserId")
+  85:           .equals(patientUserId)
+  86:           .toArray();
+  87:       }
+  88:     setVitals(allVitals.sort((a, b) => b.at - a.at));
+  89:     setMeds(await db.medications.where("patientUserId").equals(patientUserId).toArray());
+  90:     setNotes(
+  91:       (
+  92:         await Promise.all(
+  93:           (await db.notes.where("patientUserId").equals(patientUserId).toArray()).map(openNote),
+  94:         )
+  95:       ).sort((a, b) => b.at - a.at),
+  96:     );
+  97:     setAlerts((await db.alerts.where("patientUserId").equals(patientUserId).toArray()).sort((a, b) => b.at - a.at));
+  98:   }
+  99: 
+ 100:   useEffect(() => {
+ 101:     reload();
+ 102:   }, [patientUserId]);
+ 103: 
+ 104:   return { profile, patient, vitals, meds, notes, alerts, reload };
+ 105: }
+ 106: 
+ 107: export function PatientHome() {
+ 108:   const { user } = useAuth();
+ 109:   const data = usePatientBundle(user?.id);
+ 110:   const last = (t: VitalType) => data.vitals.find((v) => v.type === t);
+ 111: 
+ 112:   return (
+ 113:     <div className="space-y-4 rise">
+ 114:       <Hero name={user?.name || ""} profile={data.profile} />
+ 115:       <div className="grid grid-cols-2 gap-3 stagger">
+ 116:         <VitalTile title="Ù‚Ù†Ø¯ Ø®ÙˆÙ†" unit="mg/dL" v={last("sugar")} />
+ 117:         <VitalTile title="ÙØ´Ø§Ø±" unit="mmHg" v={last("bp")} />
+ 118:         <VitalTile title="Ø¶Ø±Ø¨Ø§Ù†" unit="bpm" v={last("hr")} />
+ 119:         <VitalTile title="Ø§Ú©Ø³ÛŒÚ˜Ù†" unit="%" v={last("o2")} />
+ 120:       </div>
+ 121:       <Link to="/app/log" className="block text-center h-12 leading-[48px] rounded-2xl bg-teal text-white font-bold">
+ 122:         Ø«Ø¨Øª Ø¹Ù„Ø§Ø¦Ù… Ø§Ù…Ø±ÙˆØ²
+ 123:       </Link>
+ 124:       <section className="card rounded-3xl p-4">
+ 125:         <p className="font-bold mb-3">Ø¯Ø§Ø±ÙˆÙ‡Ø§</p>
+ 126:         {data.meds.map((m) => (
+ 127:           <div key={m.id} className="flex justify-between py-2 border-b border-black/5 last:border-0">
+ 128:             <div>
+ 129:               <p className="font-medium">{m.name}</p>
+ 130:               <p className="text-xs text-muted">{m.schedule}</p>
+ 131:             </div>
+ 132:             <p className="text-sm text-teal">{m.dose}</p>
+ 133:           </div>
+ 134:         ))}
+ 135:       </section>
+ 136:     </div>
+ 137:   );
+ 138: }
+ 139: 
+ 140: function Hero({ name, profile }: { name: string; profile?: PatientProfile }) {
+ 141:   const bmi =
+ 142:     profile && profile.heightCm
+ 143:       ? (profile.weightKg / (profile.heightCm / 100) ** 2).toFixed(1)
+ 144:       : "â€”";
+ 145:   return (
+ 146:     <div className="rounded-[28px] p-5 text-white bg-gradient-to-br from-teal to-teal-deep">
+ 147:       <p className="opacity-80 text-sm">Ø³Ù„Ø§Ù…ØŒ Ø®ÙˆØ´ Ø§ÙˆÙ…Ø¯ÛŒ</p>
+ 148:       <h2 className="text-2xl font-extrabold mt-1">{name.split(" ")[0]} Ø¬Ø§Ù†</h2>
+ 149:       <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+ 150:         <Mini k="Ø³Ù†" v={profile?.age ?? "â€”"} />
+ 151:         <Mini k="Ù‚Ø¯" v={profile?.heightCm ? `${profile.heightCm}` : "â€”"} />
+ 152:         <Mini k="BMI" v={bmi} />
+ 153:       </div>
+ 154:     </div>
+ 155:   );
+ 156: }
+ 157: 
+ 158: function Mini({ k, v }: { k: string; v: string | number }) {
+ 159:   return (
+ 160:     <div className="bg-white/15 rounded-2xl py-2">
+ 161:       <p className="text-[11px] opacity-80">{k}</p>
+ 162:       <p className="font-bold">{v}</p>
+ 163:     </div>
+ 164:   );
+ 165: }
+ 166: 
+ 167: function VitalTile({ title, unit, v }: { title: string; unit: string; v?: Vital }) {
+ 168:   const a = v ? assessVital(v) : null;
+ 169:   const color = !a ? "text-muted" : a.level === "ok" ? "text-ok" : a.level === "warn" ? "text-amber-600" : "text-coral";
+ 170:   return (
+ 171:     <div className="card rounded-3xl p-4 min-h-[120px] rise">
+ 172:       <p className="text-sm text-muted">{title}</p>
+ 173:       <p className={`text-3xl font-extrabold mt-2 ${color}`}>
+ 174:         {v ? (v.value2 ? `${v.value}/${v.value2}` : v.value) : "â€”"}
+ 175:       </p>
+ 176:       <p className="text-xs text-muted mt-1">{v ? unit : "Ù‡Ù†ÙˆØ² Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡"}</p>
+ 177:     </div>
+ 178:   );
+ 179: }
+ 180: 
+ 181: export function LogVital() {
+ 182:   const { user } = useAuth();
+ 183:   const navigate = useNavigate();
+ 184:   const [type, setType] = useState<VitalType>("sugar");
+ 185:   const [value, setValue] = useState("");
+ 186:   const [value2, setValue2] = useState("");
+ 187:   const [context, setContext] = useState("Ù†Ø§Ø´ØªØ§");
+ 188: 
+ 189:   const types: { id: VitalType; label: string }[] = [
+ 190:     { id: "sugar", label: "Ù‚Ù†Ø¯" },
+ 191:     { id: "bp", label: "ÙØ´Ø§Ø±" },
+ 192:     { id: "hr", label: "Ø¶Ø±Ø¨Ø§Ù†" },
+ 193:     { id: "o2", label: "Ø§Ú©Ø³ÛŒÚ˜Ù†" },
+ 194:     { id: "temp", label: "ØªØ¨" },
+ 195:     { id: "weight", label: "ÙˆØ²Ù†" },
+ 196:     { id: "mood", label: "Ø­Ø§Ù„" },
+ 197:   ];
+ 198: 
+ 199:   return (
+ 200:     <div>
+ 201:       <h2 className="text-2xl font-extrabold mb-4">Ø«Ø¨Øª Ø¹Ù„Ø§Ø¦Ù…</h2>
+ 202:       <div className="flex flex-wrap gap-2 mb-4">
+ 203:         {types.map((t) => (
+ 204:           <button
+ 205:             key={t.id}
+ 206:             onClick={() => setType(t.id)}
+ 207:             className={`px-3 py-2 rounded-full text-sm ${type === t.id ? "bg-teal text-white" : "bg-white"}`}
+ 208:           >
+ 209:             {t.label}
+ 210:           </button>
+ 211:         ))}
+ 212:       </div>
+ 213:       <div className="card rounded-3xl p-4 space-y-3">
+ 214:         <label className="block">
+ 215:           <span className="text-sm text-muted">{type === "bp" ? "Ø³ÛŒØ³ØªÙˆÙ„" : "Ù…Ù‚Ø¯Ø§Ø±"}</span>
+ 216:           <input
+ 217:             className="mt-1 w-full h-12 rounded-2xl bg-paper px-4"
+ 218:             value={value}
+ 219:             onChange={(e) => setValue(e.target.value)}
+ 220:             inputMode="decimal"
+ 221:           />
+ 222:         </label>
+ 223:         {type === "bp" && (
+ 224:           <label className="block">
+ 225:             <span className="text-sm text-muted">Ø¯ÛŒØ§Ø³ØªÙˆÙ„</span>
+ 226:             <input
+ 227:               className="mt-1 w-full h-12 rounded-2xl bg-paper px-4"
+ 228:               value={value2}
+ 229:               onChange={(e) => setValue2(e.target.value)}
+ 230:               inputMode="decimal"
+ 231:             />
+ 232:           </label>
+ 233:         )}
+ 234:         {type === "sugar" && (
+ 235:           <div className="flex gap-2">
+ 236:             {["Ù†Ø§Ø´ØªØ§", "Ø¨Ø¹Ø¯ ØºØ°Ø§", "ØªØµØ§Ø¯ÙÛŒ"].map((c) => (
+ 237:               <button
+ 238:                 key={c}
+ 239:                 type="button"
+ 240:                 onClick={() => setContext(c)}
+... file continues; showing lines 1-240 of 705
+
+===== CONFIGURATION CHECK =====
+Found config file: C:\Users\amira\dr-online\.env
+DATABASE_URL is configured (value hidden)
+Found config file: C:\Users\amira\dr-online\.env.local
+VITE_API_URL is configured (value hidden)
+Found config file: C:\Users\amira\dr-online\backend\.env
+DATABASE_URL is configured (value hidden)
+
+===== API HEALTH CHECK =====
+Backend health endpoint responded successfully.
+Status: ok
+Service: dr-online-api
+
+===== END OF REPORT =====

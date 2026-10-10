@@ -1,0 +1,175 @@
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  clearFails,
+  clearSession,
+  hashPassword,
+  lockStatus,
+  passwordPolicy,
+  readSession,
+  registerFail,
+  unlockVault,
+  verifyPassword,
+  writeSession,
+} from "./crypto";
+import { db, encryptExistingRecords } from "./db";
+import { seedIfEmpty } from "./seed";
+import type { PublicUser, Role, User } from "./types";
+
+function toPublic(u: User): PublicUser {
+  const { passwordHash: _hidden, ...rest } = u;
+  return rest;
+}
+
+type AuthValue = {
+  user: PublicUser | null;
+  ready: boolean;
+  login: (identity: string, password: string, role: Role) => Promise<string | null>;
+  register: (payload: RegisterPayload) => Promise<string | null>;
+  changePassword: (current: string, next: string) => Promise<string | null>;
+  logout: () => void;
+};
+
+export type RegisterPayload = {
+  role: Role;
+  name: string;
+  phone: string;
+  password: string;
+  nationalId?: string;
+  age?: number;
+  heightCm?: number;
+  weightKg?: number;
+  gender?: "زن" | "مرد";
+  bloodType?: string;
+  caregiverPhone?: string;
+  conditions?: string[];
+  allergies?: string;
+  relation?: string;
+  patientNationalId?: string;
+};
+
+const AuthContext = createContext<AuthValue | null>(null);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<PublicUser | null>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      await seedIfEmpty();
+      const session = await readSession();
+      if (session) {
+        const found = await db.users.get(session.userId);
+        if (found) {
+          await unlockVault();
+          await encryptExistingRecords();
+          setUser(toPublic(found));
+        } else clearSession();
+      }
+      setReady(true);
+    })();
+  }, []);
+
+  const value = useMemo<AuthValue>(
+    () => ({
+      user,
+      ready,
+      logout() {
+        clearSession();
+        setUser(null);
+      },
+      async login(identity, password, role) {
+        const id = identity.trim();
+        const lock = lockStatus(`${role}:${id}`);
+        if (lock.locked) return lock.message;
+        const all = await db.users.where("role").equals(role).toArray();
+        const found = all.find((u) => u.phone === id || u.nationalId === id);
+        if (!found || !(await verifyPassword(password, found.passwordHash))) {
+          return registerFail(`${role}:${id}`);
+        }
+        clearFails(`${role}:${id}`);
+        await unlockVault();
+        await encryptExistingRecords();
+        await writeSession(found.id);
+        setUser(toPublic(found));
+        return null;
+      },
+      async register(payload) {
+        const policy = passwordPolicy(payload.password);
+        if (policy) return policy;
+        if (!payload.name.trim() || !payload.phone.trim()) return "نام و موبایل را وارد کنید.";
+        if (payload.role === "patient") {
+          if (!payload.nationalId || payload.nationalId.length < 10) return "کد ملی را کامل وارد کنید.";
+          const exists = await db.users.where("nationalId").equals(payload.nationalId).first();
+          if (exists) return "این کد ملی قبلاً ثبت شده.";
+        }
+        const phoneExists = await db.users.where("phone").equals(payload.phone).first();
+        if (phoneExists) return "این شماره قبلاً ثبت شده.";
+
+        const id = crypto.randomUUID();
+        await db.users.add({
+          id,
+          role: payload.role,
+          name: payload.name.trim(),
+          phone: payload.phone.trim(),
+          passwordHash: await hashPassword(payload.password),
+          nationalId: payload.nationalId,
+        });
+        await unlockVault();
+
+        if (payload.role === "patient") {
+          await db.profiles.add({
+            id: crypto.randomUUID(),
+            userId: id,
+            nationalId: payload.nationalId || "",
+            age: payload.age || 0,
+            heightCm: payload.heightCm || 0,
+            weightKg: payload.weightKg || 0,
+            gender: payload.gender || "زن",
+            bloodType: payload.bloodType || "نامشخص",
+            caregiverPhone: payload.caregiverPhone || "",
+            conditions: payload.conditions || [],
+            allergies: payload.allergies || "ندارد",
+            smoker: false,
+          });
+        }
+
+        if (payload.role === "caregiver" && payload.patientNationalId) {
+          const patient = await db.users.where("nationalId").equals(payload.patientNationalId).first();
+          if (patient) {
+            await db.links.add({
+              id: crypto.randomUUID(),
+              fromUserId: id,
+              patientUserId: patient.id,
+              relation: payload.relation || "مراقب",
+              kind: "care",
+            });
+          }
+        }
+
+        await writeSession(id);
+        const created = await db.users.get(id);
+        if (created) setUser(toPublic(created));
+        return null;
+      },
+      async changePassword(current, next) {
+        if (!user) return "وارد حساب نشده‌اید.";
+        const policy = passwordPolicy(next);
+        if (policy) return policy;
+        const row = await db.users.get(user.id);
+        if (!row || !(await verifyPassword(current, row.passwordHash))) return "رمز فعلی درست نیست.";
+        await db.users.update(user.id, { passwordHash: await hashPassword(next) });
+        await writeSession(user.id);
+        return null;
+      },
+    }),
+    [user, ready],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("Auth");
+  return ctx;
+}

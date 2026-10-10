@@ -1,0 +1,1033 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20261009023829
+Username: AMIRALISADAT\amira
+RunAs User: AMIRALISADAT\amira
+Configuration Name: 
+Machine: AMIRALISADAT (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+Process ID: 14280
+PSVersion: 5.1.26100.9444
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9444
+BuildVersion: 10.0.26100.9444
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Transcript started, output file is .\diagnostic-details-20261009-023829.txt
+PS C:\Users\amira\dr-online> function Show-Lines($file, $start, $end) {
+    if (!(Test-Path $file)) {
+        Write-Host "MISSING: $file" -ForegroundColor Yellow
+        return
+    }
+
+    Write-Host "`n--- $file : lines $start-$end ---" -ForegroundColor Cyan
+    $lines = Get-Content $file
+    for ($i = $start; $i -le [Math]::Min($end, $lines.Count); $i++) {
+        "{0,4}: {1}" -f $i, $lines[$i - 1]
+    }
+}
+PS C:\Users\amira\dr-online> Show-Lines "src\auth.tsx" 30 105
+
+--- src\auth.tsx : lines 30-105 ---
+  30: } from "./types";
+  31:
+  32: function toPublic(u: User): PublicUser {
+  33:   const { passwordHash: _hidden, ...rest } = u;
+  34:   return rest;
+  35: }
+  36:
+  37: type AuthValue = {
+  38:   user: PublicUser | null;
+  39:   ready: boolean;
+  40:   login: (
+  41:     identity: string,
+  42:     password: string,
+  43:     role: Role,
+  44:   ) => Promise<string | null>;
+  45:   register: (
+  46:     payload: RegisterPayload,
+  47:   ) => Promise<string | null>;
+  48:   changePassword: (
+  49:     current: string,
+  50:     next: string,
+  51:   ) => Promise<string | null>;
+  52:   logout: () => void;
+  53:   requestOtp: (phone: string) => Promise<{ error: string | null; devCode?: string }>;
+  54:   verifyOtp: (phone: string, code: string, role: Role) => Promise<string | null>;
+  55: };
+  56:
+  57: export type RegisterPayload = {
+  58:   role: Role;
+  59:   name: string;
+  60:   phone: string;
+  61:   password: string;
+  62:   nationalId?: string;
+  63:   age?: number;
+  64:   heightCm?: number;
+  65:   weightKg?: number;
+  66:   gender?: "Ø²Ù†" | "Ù…Ø±Ø¯";
+  67:   bloodType?: string;
+  68:   caregiverPhone?: string;
+  69:   conditions?: string[];
+  70:   allergies?: string;
+  71:   relation?: string;
+  72:   patientNationalId?: string;
+  73: };
+  74:
+  75:
+  76: const DR_ONLINE_REGISTRATION_TOKEN = "dr-online-registration-token";
+  77: const DR_ONLINE_REGISTRATION_PHONE = "dr-online-registration-phone";
+  78: const DR_ONLINE_REGISTRATION_ROLE = "dr-online-registration-role";
+  79:
+  80: function savePendingRegistration(
+  81:   token: string,
+  82:   phone: string,
+  83:   role: Role,
+  84: ) {
+  85:   sessionStorage.setItem(DR_ONLINE_REGISTRATION_TOKEN, token);
+  86:   sessionStorage.setItem(DR_ONLINE_REGISTRATION_PHONE, phone);
+  87:   sessionStorage.setItem(DR_ONLINE_REGISTRATION_ROLE, role);
+  88: }
+  89:
+  90: export function getPendingRegistration() {
+  91:   return {
+  92:     token: sessionStorage.getItem(DR_ONLINE_REGISTRATION_TOKEN),
+  93:     phone: sessionStorage.getItem(DR_ONLINE_REGISTRATION_PHONE),
+  94:     role: sessionStorage.getItem(DR_ONLINE_REGISTRATION_ROLE) as Role | null,
+  95:   };
+  96: }
+  97:
+  98: export function clearPendingRegistration() {
+  99:   sessionStorage.removeItem(DR_ONLINE_REGISTRATION_TOKEN);
+ 100:   sessionStorage.removeItem(DR_ONLINE_REGISTRATION_PHONE);
+ 101:   sessionStorage.removeItem(DR_ONLINE_REGISTRATION_ROLE);
+ 102: }
+ 103: const AuthContext = createContext<AuthValue | null>(null);
+ 104:
+ 105: function normalizeApiUser(data: any) {
+PS C:\Users\amira\dr-online> Show-Lines "src\auth.tsx" 490 565
+
+--- src\auth.tsx : lines 490-565 ---
+ 490:                 bloodType:
+ 491:                   payload.bloodType ||
+ 492:                   "Ù†Ø§Ù…Ø´Ø®Øµ",
+ 493:                 caregiverPhone:
+ 494:                   payload.caregiverPhone ||
+ 495:                   "",
+ 496:                 conditions:
+ 497:                   payload.conditions || [],
+ 498:                 allergies:
+ 499:                   payload.allergies ||
+ 500:                   "Ù†Ø¯Ø§Ø±Ø¯",
+ 501:                 smoker: false,
+ 502:               });
+ 503:             }
+ 504:           }
+ 505:
+ 506:           await writeSession(
+ 507:             localUser.id,
+ 508:           );
+ 509:
+ 510:           setUser(
+ 511:             toPublic(localUser),
+ 512:           );
+ 513:
+ 514:           return null;
+ 515:         } catch (error: any) {
+ 516:           console.error(
+ 517:             "Backend registration failed:",
+ 518:             error,
+ 519:           );
+ 520:
+ 521:           return (
+ 522:             error?.message ||
+ 523:             "Ã˜Â«Ã˜Â¨Ã˜ÂªÃ¢â‚¬Å’Ã™â€ Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â§Ã™â€¦Ã™Ë†Ã¯Â¿Â½AÃ™â€š Ã˜Â¨Ã™Ë†Ã˜Â¯."
+ 524:           );
+ 525:         }
+ 526:       },
+ 527:       async completeRegistration(data) {
+ 528:         const pending = getPendingRegistration();
+ 529:
+ 530:         if (!pending.token || !pending.phone) {
+ 531:           return {
+ 532:             error: "ÙØ±Ø§ÛŒÙ†Ø¯ Ø«Ø¨Øªâ€ŒÙ†Ø§Ù… Ù…Ù†Ù‚Ø¶ÛŒ Ø´Ø¯Ù‡ Ø§Ø³Øª.",
+ 533:           };
+ 534:         }
+ 535:
+ 536:         try {
+ 537:           const result = await apiCompleteRegistration({
+ 538:             ...data,
+ 539:             registration_token: pending.token,
+ 540:           });
+ 541:
+ 542:           const apiUser = normalizeApiUser(result);
+ 543:
+ 544:           if (
+ 545:             !apiUser ||
+ 546:             apiUser.id === undefined ||
+ 547:             !apiUser.name ||
+ 548:             !apiUser.phone
+ 549:           ) {
+ 550:             return {
+ 551:               error: "Ø§Ø·Ù„Ø§Ø¹Ø§Øª Ú©Ø§Ø±Ø¨Ø± Ø§Ø² Ø³Ø±ÙˆØ± Ù…Ø¹ØªØ¨Ø± Ù†ÛŒØ³Øª.",
+ 552:             };
+ 553:           }
+ 554:
+ 555:           await unlockVault();
+ 556:
+ 557:           const localUser = apiUserToLocalUser(
+ 558:             apiUser,
+ 559:             "",
+ 560:           );
+ 561:
+ 562:           const existing = await db.users.get(localUser.id);
+ 563:
+ 564:           if (existing) {
+ 565:             await db.users.update(localUser.id, {
+PS C:\Users\amira\dr-online> Show-Lines "src\api.ts" 1 180
+
+--- src\api.ts : lines 1-180 ---
+   1: const API_BASE_URL =
+   2:   import.meta.env.VITE_API_URL ||
+   3:   "http://127.0.0.1:8000";
+   4:
+   5: const ACCESS_TOKEN_KEY =
+   6:   "dr-online-access-token";
+   7:
+   8:
+   9: export function setAccessToken(
+  10:   token: string
+  11: ) {
+  12:   localStorage.setItem(
+  13:     ACCESS_TOKEN_KEY,
+  14:     token
+  15:   );
+  16: }
+  17:
+  18:
+  19: export function getAccessToken() {
+  20:   return localStorage.getItem(
+  21:     ACCESS_TOKEN_KEY
+  22:   );
+  23: }
+  24:
+  25:
+  26: export function clearAccessToken() {
+  27:   localStorage.removeItem(
+  28:     ACCESS_TOKEN_KEY
+  29:   );
+  30: }
+  31:
+  32:
+  33: async function request(
+  34:   path: string,
+  35:   options: RequestInit = {},
+  36: ) {
+  37:
+  38:   const token = getAccessToken();
+  39:
+  40:   const response = await fetch(
+  41:     `${API_BASE_URL}${path}`,
+  42:     {
+  43:       ...options,
+  44:
+  45:       headers: {
+  46:         "Content-Type":
+  47:           "application/json",
+  48:
+  49:         ...(token
+  50:           ? {
+  51:               Authorization:
+  52:                 `Bearer ${token}`,
+  53:             }
+  54:           : {}),
+  55:
+  56:         ...(options.headers || {}),
+  57:       },
+  58:     }
+  59:   );
+  60:
+  61:   const data =
+  62:     await response
+  63:       .json()
+  64:       .catch(() => ({}));
+  65:
+  66:   if (!response.ok) {
+  67:
+  68:     throw new Error(
+  69:       typeof data?.detail === "string"
+  70:         ? data.detail
+  71:         : "Server request failed"
+  72:     );
+  73:   }
+  74:
+  75:   return data;
+  76: }
+  77:
+  78:
+  79: export async function apiHealth() {
+  80:   return request(
+  81:     "/api/health"
+  82:   );
+  83: }
+  84:
+  85:
+  86: export async function apiLogin(
+  87:   phone: string,
+  88:   password: string,
+  89: ) {
+  90:
+  91:   const result =
+  92:     await request(
+  93:       "/api/auth/login",
+  94:       {
+  95:         method: "POST",
+  96:
+  97:         body: JSON.stringify({
+  98:           phone,
+  99:           password,
+ 100:         }),
+ 101:       }
+ 102:     );
+ 103:
+ 104:   if (result?.access_token) {
+ 105:     setAccessToken(
+ 106:       result.access_token
+ 107:     );
+ 108:   }
+ 109:
+ 110:   return result;
+ 111: }
+ 112:
+ 113:
+ 114: export async function apiRegister(
+ 115:   name: string,
+ 116:   phone: string,
+ 117:   password: string,
+ 118:   role:
+ 119:     | "patient"
+ 120:     | "caregiver"
+ 121:     | "doctor" = "patient",
+ 122: ) {
+ 123:
+ 124:   return request(
+ 125:     "/api/auth/register",
+ 126:     {
+ 127:       method: "POST",
+ 128:
+ 129:       body: JSON.stringify({
+ 130:         name,
+ 131:         phone,
+ 132:         password,
+ 133:         role,
+ 134:       }),
+ 135:     }
+ 136:   );
+ 137: }
+ 138:
+ 139:
+ 140: export async function apiMe() {
+ 141:   return request(
+ 142:     "/api/auth/me"
+ 143:   );
+ 144: }
+ 145:
+ 146:
+ 147: export async function apiGetProfile(
+ 148:   userId: number
+ 149: ) {
+ 150:   return request(
+ 151:     `/api/medical/patients/${userId}/profile`
+ 152:   );
+ 153: }
+ 154:
+ 155:
+ 156: export async function apiSaveProfile(
+ 157:   userId: number,
+ 158:   profile: unknown
+ 159: ) {
+ 160:   return request(
+ 161:     `/api/medical/patients/${userId}/profile`,
+ 162:     {
+ 163:       method: "PUT",
+ 164:       body: JSON.stringify({
+ 165:         ...(profile as object),
+ 166:         user_id: userId,
+ 167:       }),
+ 168:     }
+ 169:   );
+ 170: }
+ 171:
+ 172:
+ 173: export async function apiGetVitals(
+ 174:   userId: number
+ 175: ) {
+ 176:   return request(
+ 177:     `/api/medical/patients/${userId}/vitals`
+ 178:   );
+ 179: }
+ 180:
+PS C:\Users\amira\dr-online> Show-Lines "src\pages\AppPages.tsx" 1 70
+
+--- src\pages\AppPages.tsx : lines 1-70 ---
+   1: import { useEffect, useMemo, useState } from "react";
+   2: import { Link, useNavigate, useParams } from "react-router-dom";
+   3: import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
+   4: import { db, openChat, openNote, sealChat, sealNote } from "../db";
+   5: import { useAuth } from "../auth";
+   6: import { alertFromVital, assessVital, assistantReply } from "../ai";
+   7: import type { Alert, ChatMessage, Medication, Note, PatientProfile, User, Vital, VitalType } from "../types";
+   8:
+   9: import { apiGetProfile, apiSaveProfile, apiGetVitals, apiAddVital } from "../api";
+  10: function usePatientBundle(patientUserId?: string) {
+  11:   const [profile, setProfile] = useState<PatientProfile | undefined>();
+  12:   const [patient, setPatient] = useState<User | undefined>();
+  13:   const [vitals, setVitals] = useState<Vital[]>([]);
+  14:   const [meds, setMeds] = useState<Medication[]>([]);
+  15:   const [notes, setNotes] = useState<Note[]>([]);
+  16:   const [alerts, setAlerts] = useState<Alert[]>([]);
+  17:
+  18:   async function reload() {
+  19:     if (!patientUserId) return;
+  20:     setPatient(await db.users.get(patientUserId));
+  21:     try {
+  22:         const apiProfile = await apiGetProfile(patientUserId);
+  23:
+  24:         if (apiProfile) {
+  25:           setProfile({
+  26:             id: String(apiProfile.id ?? crypto.randomUUID()),
+  27:             userId: patientUserId,
+  28:             nationalId: apiProfile.national_id,
+  29:             age: apiProfile.age,
+  30:             heightCm: apiProfile.height_cm,
+  31:             weightKg: apiProfile.weight_kg,
+  32:             gender: apiProfile.gender as PatientProfile["gender"],
+  33:             bloodType: apiProfile.blood_type,
+  34:             caregiverPhone: apiProfile.caregiver_phone,
+  35:             conditions: apiProfile.conditions,
+  36:             allergies: apiProfile.allergies,
+  37:             smoker: apiProfile.smoker,
+  38:           });
+  39:         }
+  40:       } catch (error) {
+  41:         console.warn("Profile API unavailable, using local cache:", error);
+  42:
+  43:         setProfile(
+  44:           await db.profiles.where("userId").equals(patientUserId).first(),
+  45:         );
+  46:       }
+  47:     let allVitals: Vital[] = [];
+  48:
+  49:       try {
+  50:         const apiVitals = await apiGetVitals(patientUserId);
+  51:
+  52:         allVitals = apiVitals.map((v) => ({
+  53:           id: String(v.id),
+  54:           patientUserId,
+  55:           type: v.type as VitalType,
+  56:           value: v.value,
+  57:           value2: v.value2 ?? undefined,
+  58:           context: v.context ?? undefined,
+  59:           at: v.recorded_at,
+  60:         }));
+  61:       } catch (error) {
+  62:         console.warn("Vitals API unavailable, using local cache:", error);
+  63:
+  64:         allVitals = await db.vitals
+  65:           .where("patientUserId")
+  66:           .equals(patientUserId)
+  67:           .toArray();
+  68:       }
+  69:     setVitals(allVitals.sort((a, b) => b.at - a.at));
+  70:     setMeds(await db.medications.where("patientUserId").equals(patientUserId).toArray());
+PS C:\Users\amira\dr-online> Show-Lines "src\pages\AppPages.tsx" 220 260
+
+--- src\pages\AppPages.tsx : lines 220-260 ---
+ 220:                 type="button"
+ 221:                 onClick={() => setContext(c)}
+ 222:                 className={`flex-1 h-10 rounded-xl text-sm ${context === c ? "bg-teal text-white" : "bg-paper"}`}
+ 223:               >
+ 224:                 {c}
+ 225:               </button>
+ 226:             ))}
+ 227:           </div>
+ 228:         )}
+ 229:         <button
+ 230:           className="w-full h-12 rounded-2xl bg-teal text-white font-bold"
+ 231:           onClick={async () => {
+ 232:             if (!user || !value || Number.isNaN(Number(value))) return;
+ 233:             const vital: Vital = {
+ 234:               id: crypto.randomUUID(),
+ 235:               patientUserId: user.id,
+ 236:               type,
+ 237:               value: Number(value),
+ 238:               value2: value2 ? Number(value2) : undefined,
+ 239:               context: type === "sugar" ? context : undefined,
+ 240:               at: Date.now(),
+ 241:             };
+ 242:             try {
+ 243:               await apiAddVital(user.id, {
+ 244:                 type,
+ 245:                 value: Number(value),
+ 246:                 value2: value2 ? Number(value2) : undefined,
+ 247:                 context: type === "sugar" ? context : undefined,
+ 248:               });
+ 249:             } catch (error) {
+ 250:               console.error("Failed to save vital to backend:", error);
+ 251:
+ 252:               // Keep local cache as offline fallback.
+ 253:               await db.vitals.add(vital);
+ 254:             }
+ 255:             const alert = alertFromVital(user.id, vital);
+ 256:             if (alert) await db.alerts.add(alert);
+ 257:             navigate("/app");
+ 258:           }}
+ 259:         >
+ 260:           Ø°Ø®ÛŒØ±Ù‡
+PS C:\Users\amira\dr-online> Show-Lines "src\pages\CompleteRegistration.tsx" 1 85
+
+--- src\pages\CompleteRegistration.tsx : lines 1-85 ---
+   1: import { FormEvent, useState } from "react";
+   2: import { useNavigate } from "react-router-dom";
+   3: import { getPendingRegistration, useAuth } from "../auth";
+   4:
+   5: export default function CompleteRegistration() {
+   6:   const { completeRegistration } = useAuth();
+   7:   const navigate = useNavigate();
+   8:
+   9:   const pending = getPendingRegistration();
+  10:
+  11:   const [name, setName] = useState("");
+  12:   const [nationalId, setNationalId] = useState("");
+  13:   const [age, setAge] = useState("");
+  14:   const [height, setHeight] = useState("");
+  15:   const [weight, setWeight] = useState("");
+  16:   const [gender, setGender] = useState("");
+  17:   const [bloodType, setBloodType] = useState("");
+  18:   const [caregiverPhone, setCaregiverPhone] = useState("");
+  19:   const [conditions, setConditions] = useState("");
+  20:   const [allergies, setAllergies] = useState("");
+  21:   const [smoker, setSmoker] = useState(false);
+  22:
+  23:   const [busy, setBusy] = useState(false);
+  24:   const [error, setError] = useState("");
+  25:
+  26:   if (!pending.token || !pending.phone || !pending.role) {
+  27:     return (
+  28:       <div className="phone-shell bg-paper min-h-dvh p-6 grid place-items-center">
+  29:         <div className="card rounded-3xl p-6 text-center">
+  30:           <h1 className="text-xl font-extrabold">
+  31:             فرایند ثبت‌نام منقضی شده است
+  32:           </h1>
+  33:
+  34:           <p className="text-muted mt-3">
+  35:             لطفاً دوباره با شماره موبایل خود شروع کنید.
+  36:           </p>
+  37:
+  38:           <button
+  39:             className="mt-6 w-full h-11 rounded-2xl bg-teal text-white font-bold"
+  40:             onClick={() => navigate("/", { replace: true })}
+  41:           >
+  42:             بازگشت
+  43:           </button>
+  44:         </div>
+  45:       </div>
+  46:     );
+  47:   }
+  48:
+  49:   async function submit(event: FormEvent) {
+  50:     event.preventDefault();
+  51:
+  52:     setError("");
+  53:
+  54:     if (!name.trim()) {
+  55:       setError("نام و نام خانوادگی را وارد کنید.");
+  56:       return;
+  57:     }
+  58:
+  59:     setBusy(true);
+  60:
+  61:     try {
+  62:       const result = await completeRegistration({
+  63:         name: name.trim(),
+  64:         role: pending.role!,
+  65:         national_id: nationalId.trim() || undefined,
+  66:         age: age ? Number(age) : undefined,
+  67:         height_cm: height ? Number(height) : undefined,
+  68:         weight_kg: weight ? Number(weight) : undefined,
+  69:         gender: gender || undefined,
+  70:         blood_type: bloodType || undefined,
+  71:         caregiver_phone: caregiverPhone.trim() || undefined,
+  72:         conditions: conditions
+  73:           .split(",")
+  74:           .map((item) => item.trim())
+  75:           .filter(Boolean),
+  76:         allergies: allergies.trim() || undefined,
+  77:         smoker,
+  78:       });
+  79:
+  80:       if (result?.error) {
+  81:         setError(result.error);
+  82:         return;
+  83:       }
+  84:
+  85:       navigate("/app", { replace: true });
+PS C:\Users\amira\dr-online> Show-Lines "backend\app\api\medical.py" 1 180
+
+--- backend\app\api\medical.py : lines 1-180 ---
+   1: from datetime import datetime, timezone
+   2: from typing import Optional
+   3:
+   4: from fastapi import APIRouter, Depends, HTTPException, status
+   5: from pydantic import BaseModel
+   6: from sqlalchemy import select
+   7: from sqlalchemy.ext.asyncio import AsyncSession
+   8:
+   9: from app.database import get_db
+  10: from app.models.medical import PatientProfile, Vital
+  11: from app.models.user import User
+  12: from app.security.jwt import get_current_user, ensure_self_access
+  13:
+  14:
+  15: router = APIRouter(
+  16:     prefix="/medical",
+  17:     tags=["Medical"],
+  18: )
+  19:
+  20:
+  21: class PatientProfileRequest(BaseModel):
+  22:     user_id: int
+  23:     national_id: str
+  24:     age: int
+  25:     height_cm: float
+  26:     weight_kg: float
+  27:     gender: str
+  28:     blood_type: str
+  29:     caregiver_phone: str
+  30:     conditions: list[str] = []
+  31:     allergies: str = ""
+  32:     smoker: bool = False
+  33:
+  34:
+  35: class VitalRequest(BaseModel):
+  36:     patient_user_id: int
+  37:     type: str
+  38:     value: float
+  39:     value2: Optional[float] = None
+  40:     context: Optional[str] = None
+  41:
+  42:
+  43: @router.get("/patients/{user_id}/profile")
+  44: async def read_profile(
+  45:     user_id: int,
+  46:     current_user: User = Depends(get_current_user),
+  47:     db: AsyncSession = Depends(get_db),
+  48: ):
+  49:     ensure_self_access(current_user, user_id)
+  50:
+  51:     result = await db.execute(
+  52:         select(PatientProfile).where(
+  53:             PatientProfile.user_id == user_id
+  54:         )
+  55:     )
+  56:
+  57:     profile = result.scalar_one_or_none()
+  58:
+  59:     if profile is None:
+  60:         return {
+  61:             "status": "ok",
+  62:             "profile": None,
+  63:         }
+  64:
+  65:     return {
+  66:         "status": "ok",
+  67:         "profile": {
+  68:             "id": profile.id,
+  69:             "user_id": profile.user_id,
+  70:             "national_id": profile.national_id,
+  71:             "age": profile.age,
+  72:             "height_cm": profile.height_cm,
+  73:             "weight_kg": profile.weight_kg,
+  74:             "gender": profile.gender,
+  75:             "blood_type": profile.blood_type,
+  76:             "caregiver_phone": profile.caregiver_phone,
+  77:             "conditions": (
+  78:                 profile.conditions.split(",")
+  79:                 if profile.conditions
+  80:                 else []
+  81:             ),
+  82:             "allergies": profile.allergies or "",
+  83:             "smoker": profile.smoker,
+  84:         },
+  85:     }
+  86:
+  87:
+  88: @router.put("/patients/{user_id}/profile")
+  89: async def update_profile(
+  90:     user_id: int,
+  91:     data: PatientProfileRequest,
+  92:     current_user: User = Depends(get_current_user),
+  93:     db: AsyncSession = Depends(get_db),
+  94: ):
+  95:     ensure_self_access(current_user, user_id)
+  96:
+  97:     if data.user_id != user_id:
+  98:         raise HTTPException(
+  99:             status_code=status.HTTP_400_BAD_REQUEST,
+ 100:             detail="User ID mismatch",
+ 101:         )
+ 102:
+ 103:     result = await db.execute(
+ 104:         select(PatientProfile).where(
+ 105:             PatientProfile.user_id == user_id
+ 106:         )
+ 107:     )
+ 108:
+ 109:     profile = result.scalar_one_or_none()
+ 110:
+ 111:     conditions_text = ",".join(data.conditions)
+ 112:
+ 113:     if profile is None:
+ 114:         profile = PatientProfile(
+ 115:             user_id=user_id,
+ 116:             national_id=data.national_id,
+ 117:             age=data.age,
+ 118:             height_cm=data.height_cm,
+ 119:             weight_kg=data.weight_kg,
+ 120:             gender=data.gender,
+ 121:             blood_type=data.blood_type,
+ 122:             caregiver_phone=data.caregiver_phone,
+ 123:             conditions=conditions_text,
+ 124:             allergies=data.allergies,
+ 125:             smoker=data.smoker,
+ 126:         )
+ 127:
+ 128:         db.add(profile)
+ 129:
+ 130:     else:
+ 131:         profile.national_id = data.national_id
+ 132:         profile.age = data.age
+ 133:         profile.height_cm = data.height_cm
+ 134:         profile.weight_kg = data.weight_kg
+ 135:         profile.gender = data.gender
+ 136:         profile.blood_type = data.blood_type
+ 137:         profile.caregiver_phone = data.caregiver_phone
+ 138:         profile.conditions = conditions_text
+ 139:         profile.allergies = data.allergies
+ 140:         profile.smoker = data.smoker
+ 141:
+ 142:     await db.commit()
+ 143:     await db.refresh(profile)
+ 144:
+ 145:     return {
+ 146:         "status": "ok",
+ 147:         "profile": {
+ 148:             "id": profile.id,
+ 149:             "user_id": profile.user_id,
+ 150:             "national_id": profile.national_id,
+ 151:             "age": profile.age,
+ 152:             "height_cm": profile.height_cm,
+ 153:             "weight_kg": profile.weight_kg,
+ 154:             "gender": profile.gender,
+ 155:             "blood_type": profile.blood_type,
+ 156:             "caregiver_phone": profile.caregiver_phone,
+ 157:             "conditions": data.conditions,
+ 158:             "allergies": profile.allergies or "",
+ 159:             "smoker": profile.smoker,
+ 160:         },
+ 161:     }
+ 162:
+ 163:
+ 164: @router.post("/vitals")
+ 165: async def create_vital(
+ 166:     data: VitalRequest,
+ 167:     current_user: User = Depends(get_current_user),
+ 168:     db: AsyncSession = Depends(get_db),
+ 169: ):
+ 170:     ensure_self_access(current_user, data.patient_user_id)
+ 171:
+ 172:     vital = Vital(
+ 173:         patient_user_id=data.patient_user_id,
+ 174:         type=data.type,
+ 175:         value=data.value,
+ 176:         value2=data.value2,
+ 177:         context=data.context,
+ 178:         recorded_at=datetime.now(timezone.utc).isoformat(),
+ 179:     )
+ 180:
+PS C:\Users\amira\dr-online> Show-Lines "backend\app\api\auth.py" 1 180
+
+--- backend\app\api\auth.py : lines 1-180 ---
+   1: from pydantic import BaseModel
+   2: from datetime import datetime, timezone
+   3: import hashlib
+   4: import secrets
+   5: from app.models.medical import PatientProfile
+   6: from app.models.pending_registration import PendingRegistration
+   7: from fastapi import APIRouter, Depends, HTTPException, status
+   8:
+   9: from sqlalchemy import select
+  10: from sqlalchemy.ext.asyncio import AsyncSession
+  11:
+  12: from app.database import get_db
+  13: from app.models.user import User
+  14:
+  15: from app.schemas.auth import (
+  16:     RegisterRequest,
+  17:     LoginRequest,
+  18:     UserResponse,
+  19: )
+  20:
+  21: from app.security.password import (
+  22:     hash_password,
+  23:     verify_password,
+  24: )
+  25:
+  26: from app.security.jwt import (
+  27:     create_access_token,
+  28:     get_current_user,
+  29: )
+  30:
+  31:
+  32: router = APIRouter(
+  33:     prefix="/auth",
+  34:     tags=["Authentication"],
+  35: )
+  36:
+  37:
+  38: @router.post(
+  39:     "/register",
+  40:     response_model=UserResponse,
+  41: )
+  42: async def register(
+  43:     data: RegisterRequest,
+  44:     db: AsyncSession = Depends(get_db),
+  45: ):
+  46:
+  47:     result = await db.execute(
+  48:         select(User).where(
+  49:             User.phone == data.phone
+  50:         )
+  51:     )
+  52:
+  53:     existing = result.scalar_one_or_none()
+  54:
+  55:     if existing:
+  56:         raise HTTPException(
+  57:             status_code=status.HTTP_409_CONFLICT,
+  58:             detail="User already exists",
+  59:         )
+  60:
+  61:     user = User(
+  62:         name=data.name,
+  63:         phone=data.phone,
+  64:         password_hash=hash_password(
+  65:             data.password
+  66:         ),
+  67:         role=data.role,
+  68:     )
+  69:
+  70:     db.add(user)
+  71:
+  72:     await db.commit()
+  73:     await db.refresh(user)
+  74:
+  75:     return user
+  76:
+  77:
+  78: @router.post("/login")
+  79: async def login(
+  80:     data: LoginRequest,
+  81:     db: AsyncSession = Depends(get_db),
+  82: ):
+  83:
+  84:     result = await db.execute(
+  85:         select(User).where(
+  86:             User.phone == data.phone
+  87:         )
+  88:     )
+  89:
+  90:     user = result.scalar_one_or_none()
+  91:
+  92:     if (
+  93:         not user
+  94:         or not verify_password(
+  95:             data.password,
+  96:             user.password_hash,
+  97:         )
+  98:     ):
+  99:         raise HTTPException(
+ 100:             status_code=status.HTTP_401_UNAUTHORIZED,
+ 101:             detail="Invalid credentials",
+ 102:         )
+ 103:
+ 104:     token = create_access_token(user)
+ 105:
+ 106:     return {
+ 107:         "status": "ok",
+ 108:         "access_token": token,
+ 109:         "token_type": "bearer",
+ 110:         "user": {
+ 111:             "id": user.id,
+ 112:             "name": user.name,
+ 113:             "phone": user.phone,
+ 114:             "role": user.role,
+ 115:         },
+ 116:     }
+ 117:
+ 118:
+ 119: @router.get("/me")
+ 120: async def me(
+ 121:     current_user: User = Depends(
+ 122:         get_current_user
+ 123:     ),
+ 124: ):
+ 125:
+ 126:     return {
+ 127:         "id": current_user.id,
+ 128:         "name": current_user.name,
+ 129:         "phone": current_user.phone,
+ 130:         "role": current_user.role,
+ 131:     }
+ 132:
+ 133: class CompleteRegistrationRequest(BaseModel):
+ 134:     registration_token: str
+ 135:     name: str
+ 136:     role: str = "patient"
+ 137:     national_id: str | None = None
+ 138:     age: int | None = None
+ 139:     height_cm: float | None = None
+ 140:     weight_kg: float | None = None
+ 141:     gender: str | None = None
+ 142:     blood_type: str | None = None
+ 143:     caregiver_phone: str | None = None
+ 144:     conditions: list[str] = []
+ 145:     allergies: str | None = None
+ 146:     smoker: bool = False
+ 147:
+ 148:
+ 149: @router.post("/complete-registration")
+ 150: async def complete_registration(
+ 151:     data: CompleteRegistrationRequest,
+ 152:     db: AsyncSession = Depends(get_db),
+ 153: ):
+ 154:     token = data.registration_token.strip()
+ 155:     name = data.name.strip()
+ 156:     role = data.role.strip().lower()
+ 157:
+ 158:     if not token or not name:
+ 159:         raise HTTPException(
+ 160:             status_code=400,
+ 161:             detail="Token and name are required.",
+ 162:         )
+ 163:
+ 164:     if role not in {"patient", "caregiver", "doctor"}:
+ 165:         raise HTTPException(
+ 166:             status_code=400,
+ 167:             detail="Invalid role.",
+ 168:         )
+ 169:
+ 170:     token_hash = hashlib.sha256(
+ 171:         token.encode("utf-8")
+ 172:     ).hexdigest()
+ 173:
+ 174:     result = await db.execute(
+ 175:         select(PendingRegistration).where(
+ 176:             PendingRegistration.registration_token_hash == token_hash,
+ 177:             PendingRegistration.consumed.is_(False),
+ 178:         )
+ 179:     )
+ 180:
+PS C:\Users\amira\dr-online> Show-Lines "backend\app\main.py" 1 100
+
+--- backend\app\main.py : lines 1-100 ---
+   1: from contextlib import asynccontextmanager
+   2:
+   3: from fastapi import FastAPI
+   4: from fastapi.middleware.cors import CORSMiddleware
+   5:
+   6: from app.database import init_db
+   7:
+   8: from app.models.user import User
+   9: from app.models.medical import PatientProfile, Vital
+  10: from app.models.link import UserPatientLink
+  11: from app.models.otp import OTPCode
+  12:
+  13: from app.api.auth import router as auth_router
+  14: from app.api.otp import router as otp_router
+  15: from app.api.medical import router as medical_router
+  16:
+  17:
+  18: @asynccontextmanager
+  19: async def lifespan(app: FastAPI):
+  20:     await init_db()
+  21:     yield
+  22:
+  23:
+  24: app = FastAPI(
+  25:     title="DR-ONLINE API",
+  26:     version="1.0.0",
+  27:     lifespan=lifespan,
+  28: )
+  29:
+  30:
+  31: app.add_middleware(
+  32:     CORSMiddleware,
+  33:     allow_origins=[
+  34:         "http://localhost:5173",
+  35:         "http://127.0.0.1:5173",
+  36:     ],
+  37:     allow_credentials=True,
+  38:     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  39:     allow_headers=["Authorization", "Content-Type"],
+  40: )
+  41:
+  42:
+  43: @app.middleware("http")
+  44: async def security_headers(request, call_next):
+  45:     response = await call_next(request)
+  46:
+  47:     response.headers["X-Content-Type-Options"] = "nosniff"
+  48:     response.headers["X-Frame-Options"] = "DENY"
+  49:     response.headers["Referrer-Policy"] = "no-referrer"
+  50:     response.headers["Permissions-Policy"] = (
+  51:         "camera=(), microphone=(), geolocation=()"
+  52:     )
+  53:     response.headers["Cache-Control"] = "no-store"
+  54:
+  55:     return response
+  56:
+  57:
+  58: @app.get("/api/health")
+  59: async def health():
+  60:     return {
+  61:         "status": "ok",
+  62:         "service": "dr-online-api",
+  63:     }
+  64:
+  65:
+  66: app.include_router(auth_router, prefix="/api")
+  67: app.include_router(otp_router, prefix="/api")
+  68: app.include_router(medical_router, prefix="/api")
+PS C:\Users\amira\dr-online> Write-Host "`n========== BACKEND PROCESSES ==========" -ForegroundColor Cyan
+
+========== BACKEND PROCESSES ==========
+PS C:\Users\amira\dr-online> Get-CimInstance Win32_Process |
+    Where-Object {
+        $_.Name -match "python|uvicorn" -and
+        $_.CommandLine -match "dr-online|uvicorn|app.main"
+    } |
+    Select-Object ProcessId, Name, CommandLine |
+    Format-List
+PS C:\Users\amira\dr-online> Write-Host "`n========== LISTENING PORT 8000 ==========" -ForegroundColor Cyan
+
+========== LISTENING PORT 8000 ==========
+PS C:\Users\amira\dr-online> Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue
+PS C:\Users\amira\dr-online> Stop-Transcript
+**********************
+Windows PowerShell transcript end
+End time: 20261009023831
+**********************

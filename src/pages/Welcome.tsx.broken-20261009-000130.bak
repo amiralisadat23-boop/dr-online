@@ -1,0 +1,530 @@
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Activity, HeartHandshake, Stethoscope } from "lucide-react";
+import { useAuth } from "../auth";
+import type { Role } from "../types";
+
+export function Welcome() {
+  const { user, ready } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (ready && user) {
+      navigate("/app", { replace: true });
+    }
+  }, [ready, user, navigate]);
+
+  return (
+    <div className="phone-shell bg-paper min-h-dvh px-5 pt-10 pb-8 relative overflow-hidden">
+      <div className="absolute -left-10 -top-8 w-40 h-40 rounded-full bg-teal/15 floaty" />
+      <div className="absolute -right-8 top-24 w-28 h-28 rounded-full bg-coral/15 floaty" />
+
+      <p className="text-teal font-bold tracking-wide rise">
+        DR ONLINE
+      </p>
+
+      <h1 className="mt-3 text-4xl font-extrabold leading-[1.2] rise delay-1">
+        �.را�,بت س�"ا�.ت
+        <br />
+        در ک�?ار �?�.
+      </h1>
+
+      <p className="mt-3 text-muted leading-7 rise delay-2">
+        ب�O�.ار ع�"ائ�. را ثبت �.�O�?Oک�?د�O �.را�,ب �^ضع�Oت را �.�O�?Oب�O�?د �^ پزشک پر�^�?د�? را
+        ز�Oر �?ظر دارد �?" با �Oک �?�.را�? �?�^ش�.�?د.
+      </p>
+
+      <div className="mt-8 space-y-3 rise delay-3 stagger">
+        <RoleCard
+          to="/login/patient"
+          icon={<Activity />}
+          title="�.�? ب�O�.ار �?ست�."
+          desc="ثبت �,�?د�O فشار�O دار�^ �^ پر�^�?د�? پزشک�O"
+        />
+
+        <RoleCard
+          to="/login/caregiver"
+          icon={<HeartHandshake />}
+          title="�.�? �.را�,ب �?ست�."
+          desc="�?ظارت ر�^�O ب�O�.ار�O �?شدار �^ �Oادداشت �.را�,بت�O"
+        />
+
+        <RoleCard
+          to="/login/doctor"
+          icon={<Stethoscope />}
+          title="�.�? پزشک �?ست�."
+          desc="پ�?�" ب�O�.ارا�?�O ر�^�?د ع�"ائ�. �^ ت�^ص�O�? پزشک�O"
+        />
+      </div>
+    </div>
+  );
+}
+
+function RoleCard({
+  to,
+  icon,
+  title,
+  desc,
+}: {
+  to: string;
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className="card pressable rounded-3xl p-4 flex items-center gap-4 text-right rise"
+    >
+      <div className="flex-1 min-w-0">
+        <p className="font-bold">{title}</p>
+        <p className="text-sm text-muted mt-0.5">{desc}</p>
+      </div>
+
+      <div className="w-12 h-12 rounded-2xl bg-teal text-white grid place-items-center shrink-0">
+        {icon}
+      </div>
+    </Link>
+  );
+}
+
+export function Login({ role }: { role: Role }) {
+  const { requestOtp, verifyOtp } = useAuth();
+  const navigate = useNavigate();
+
+  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<"phone" | "otp">("phone");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [devCode, setDevCode] = useState<string | null>(null);
+
+  const title =
+    role === "patient"
+      ? "�^ر�^د ب�O�.ار"
+      : role === "caregiver"
+        ? "�^ر�^د �.را�,ب"
+        : "�^ر�^د پزشک";
+
+  async function sendCode() {
+    setError(null);
+
+    const normalizedPhone = phone.trim();
+
+    if (!normalizedPhone) {
+      setError("ش�.ار�? �.�^با�O�" را �^ارد ک�?�Oد.");
+      return;
+    }
+
+    setBusy(true);
+
+    try {
+      const result = await requestOtp(normalizedPhone);
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      setDevCode(result.devCode || null);
+      setStep("otp");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmCode() {
+    setError(null);
+
+    if (!/^\d{6}$/.test(code.trim())) {
+      setError("کد تأ�O�Oد با�Oد ۶ ر�,�. باشد.");
+      return;
+    }
+
+    setBusy(true);
+
+    try {
+      const result = await verifyOtp(phone, code, role);
+
+      if (result === "REGISTRATION_REQUIRED") {
+        navigate("/complete-registration", { replace: true });
+        return;
+      }
+
+      if (result) {
+        setError(result);
+        return;
+      }
+
+      navigate("/app", { replace: true });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="phone-shell bg-paper min-h-dvh px-5 pt-10">
+      <Link to="/" className="text-sm text-teal">
+        بازگشت
+      </Link>
+
+      <h1 className="mt-6 text-3xl font-extrabold rise">
+        {title}
+      </h1>
+
+      {step === "phone" ? (
+        <>
+          <p className="text-muted mt-2 text-sm">
+            ش�.ار�? �.�^با�O�" خ�^د را �^ارد ک�?�Oد تا کد تأ�O�Oد برا�O ش�.ا ارسا�" ش�^د.
+          </p>
+
+          <form
+            className="mt-8 space-y-4 rise delay-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void sendCode();
+            }}
+          >
+            <Field
+              label="ش�.ار�? �.�^با�O�""
+              value={phone}
+              onChange={setPhone}
+              type="tel"
+              autoComplete="tel"
+            />
+
+            {error && (
+              <p className="text-coral text-sm">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={busy}
+              className="w-full h-12 rounded-2xl bg-teal text-white font-bold pressable disabled:opacity-60"
+            >
+              {busy ? "در حا�" ارسا�"..." : "ارسا�" کد تأ�O�Oد"}
+            </button>
+          </form>
+        </>
+      ) : (
+        <>
+          <p className="text-muted mt-2 text-sm">
+            کد ۶ ر�,�.�O ارسا�"�?Oشد�? برا�O ش�.ار�?
+            <br />
+            <span className="font-bold text-ink">
+              {phone}
+            </span>
+            <br />
+            را �^ارد ک�?�Oد.
+          </p>
+
+          <form
+            className="mt-8 space-y-4 rise delay-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void confirmCode();
+            }}
+          >
+            <Field
+              label="کد تأ�O�Oد ۶ ر�,�.�O"
+              value={code}
+              onChange={(value) =>
+                setCode(
+                  value.replace(/\D/g, "").slice(0, 6),
+                )
+              }
+              type="tel"
+              autoComplete="one-time-code"
+            />
+
+            {devCode && (
+              <div className="rounded-2xl bg-teal/10 p-3 text-sm">
+                کد تست ت�^سع�?:
+                <span className="font-extrabold mr-2">
+                  {devCode}
+                </span>
+              </div>
+            )}
+
+            {error && (
+              <p className="text-coral text-sm">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={busy || code.length !== 6}
+              className="w-full h-12 rounded-2xl bg-teal text-white font-bold pressable disabled:opacity-60"
+            >
+              {busy ? "در حا�" بررس�O..." : "تأ�O�Oد �^ �^ر�^د"}
+            </button>
+
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setCode("");
+                setError(null);
+                setDevCode(null);
+                setStep("phone");
+              }}
+              className="w-full h-11 rounded-2xl bg-white font-bold"
+            >
+              تغ�O�Oر ش�.ار�?
+            </button>
+          </form>
+        </>
+      )}
+
+      <Link
+        to={`/register/${role}`}
+        className="block text-center mt-5 text-teal font-bold"
+      >
+        حساب �?دار�.�O ثبت�?O�?ا�. �.�O�?Oک�?�.
+      </Link>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  type = "text",
+  autoComplete,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  autoComplete?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="text-sm text-muted">{label}</span>
+
+      <input
+        className="mt-1 w-full h-12 rounded-2xl bg-white px-4 outline-none border border-black/5"
+        value={value}
+        type={type}
+        autoComplete={autoComplete}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </label>
+  );
+}
+
+const CONDITIONS = [
+  "د�Oابت",
+  "فشار خ�^�?",
+  "ب�O�.ار�O �,�"ب�O",
+  "آس�.",
+  "ک�"�O�^�O",
+  "ت�Oر�^ئ�Oد",
+];
+
+export function Register({ role }: { role: Role }) {
+  const { register } = useAuth();
+  const navigate = useNavigate();
+
+  const [error, setError] = useState<string | null>(null);
+
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    password: "",
+    nationalId: "",
+    age: "45",
+    heightCm: "165",
+    weightKg: "70",
+    gender: "ز�?" as "ز�?" | "�.رد",
+    bloodType: "A+",
+    caregiverPhone: "",
+    allergies: "",
+    conditions: [] as string[],
+    relation: "فرز�?د",
+    patientNationalId: "",
+  });
+
+  const set = (k: string, v: string) =>
+    setForm((f) => ({ ...f, [k]: v }));
+
+  return (
+    <div className="phone-shell bg-paper min-h-dvh px-5 pt-10 pb-10">
+      <Link to={`/login/${role}`} className="text-sm text-teal">
+        بازگشت
+      </Link>
+
+      <h1 className="mt-6 text-3xl font-extrabold">
+        ثبت�?O�?ا�.
+      </h1>
+
+      <p className="text-muted mt-2 text-sm">
+        ر�.ز حدا�,�" ۸ کاراکتر �^ ترک�Oب�O از حر�^ف �^ عدد باشد.
+      </p>
+
+      <form
+        className="mt-6 space-y-3"
+        onSubmit={async (e) => {
+          e.preventDefault();
+
+          const err = await register({
+            role,
+            name: form.name,
+            phone: form.phone,
+            password: form.password,
+            nationalId: form.nationalId,
+            age: Number(form.age),
+            heightCm: Number(form.heightCm),
+            weightKg: Number(form.weightKg),
+            gender: form.gender,
+            bloodType: form.bloodType,
+            caregiverPhone: form.caregiverPhone,
+            conditions: form.conditions,
+            allergies: form.allergies,
+            relation: form.relation,
+            patientNationalId: form.patientNationalId,
+          });
+
+          if (err) {
+            setError(err);
+          } else {
+            navigate("/app");
+          }
+        }}
+      >
+        <Field
+          label="�?ا�. �^ �?ا�. خا�?�^ادگ�O"
+          value={form.name}
+          onChange={(v) => set("name", v)}
+        />
+
+        <Field
+          label="ش�.ار�? �.�^با�O�""
+          value={form.phone}
+          onChange={(v) => set("phone", v)}
+        />
+
+        <Field
+          label="ر�.ز عب�^ر"
+          value={form.password}
+          onChange={(v) => set("password", v)}
+          type="password"
+          autoComplete="new-password"
+        />
+
+        {role === "patient" && (
+          <>
+            <Field
+              label="کد �.�"�O"
+              value={form.nationalId}
+              onChange={(v) => set("nationalId", v)}
+            />
+
+            <div className="grid grid-cols-3 gap-2">
+              <Field
+                label="س�?"
+                value={form.age}
+                onChange={(v) => set("age", v)}
+              />
+
+              <Field
+                label="�,د (سا�?ت�O�?O�.تر)"
+                value={form.heightCm}
+                onChange={(v) => set("heightCm", v)}
+              />
+
+              <Field
+                label="�^ز�?"
+                value={form.weightKg}
+                onChange={(v) => set("weightKg", v)}
+              />
+            </div>
+
+            <Field
+              label="ش�.ار�? �.را�,ب"
+              value={form.caregiverPhone}
+              onChange={(v) => set("caregiverPhone", v)}
+            />
+
+            <Field
+              label="گر�^�? خ�^�?�O"
+              value={form.bloodType}
+              onChange={(v) => set("bloodType", v)}
+            />
+
+            <Field
+              label="حساس�Oت دار�^�O�O"
+              value={form.allergies}
+              onChange={(v) => set("allergies", v)}
+            />
+
+            <p className="text-sm text-muted pt-1">
+              ب�O�.ار�O�?O�?ا�O ز�.�O�?�?�?Oا�O
+            </p>
+
+            <div className="flex flex-wrap gap-2">
+              {CONDITIONS.map((c) => {
+                const on = form.conditions.includes(c);
+
+                return (
+                  <button
+                    type="button"
+                    key={c}
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        conditions: on
+                          ? f.conditions.filter((x) => x !== c)
+                          : [...f.conditions, c],
+                      }))
+                    }
+                    className={`px-3 py-1.5 rounded-full text-sm ${
+                      on
+                        ? "bg-teal text-white"
+                        : "bg-white"
+                    }`}
+                  >
+                    {c}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {role === "caregiver" && (
+          <>
+            <Field
+              label="کد �.�"�O ب�O�.ار تحت �?ظر (اخت�Oار�O)"
+              value={form.patientNationalId}
+              onChange={(v) =>
+                set("patientNationalId", v)
+              }
+            />
+
+            <Field
+              label="�?سبت با ب�O�.ار"
+              value={form.relation}
+              onChange={(v) => set("relation", v)}
+            />
+          </>
+        )}
+
+        {error && (
+          <p className="text-coral text-sm">
+            {error}
+          </p>
+        )}
+
+        <button className="w-full h-12 rounded-2xl bg-teal text-white font-bold mt-2 pressable">
+          ساخت حساب
+        </button>
+      </form>
+    </div>
+  );
+}
+

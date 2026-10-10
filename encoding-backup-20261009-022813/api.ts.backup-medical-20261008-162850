@@ -1,0 +1,70 @@
+﻿const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
+export type ApiRole = "patient" | "caregiver" | "doctor";
+
+export type ApiUser = {
+  id: number;
+  name: string;
+  phone: string;
+  role: ApiRole;
+};
+
+async function request(
+  path: string,
+  options: RequestInit = {},
+) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      typeof data?.detail === "string"
+        ? data.detail
+        : "Server request failed",
+    );
+  }
+
+  return data;
+}
+
+export async function apiHealth() {
+  return request("/api/health");
+}
+
+export async function apiLogin(
+  phone: string,
+  password: string,
+) {
+  return request("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({
+      phone,
+      password,
+    }),
+  });
+}
+
+export async function apiRegister(
+  name: string,
+  phone: string,
+  password: string,
+  role: ApiRole = "patient",
+) {
+  return request("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify({
+      name,
+      phone,
+      password,
+      role,
+    }),
+  }) as Promise<ApiUser>;
+}

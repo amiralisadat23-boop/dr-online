@@ -1,0 +1,248 @@
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  "http://127.0.0.1:8000";
+
+const ACCESS_TOKEN_KEY =
+  "dr-online-access-token";
+
+
+export function setAccessToken(
+  token: string
+) {
+  localStorage.setItem(
+    ACCESS_TOKEN_KEY,
+    token
+  );
+}
+
+
+export function getAccessToken() {
+  return localStorage.getItem(
+    ACCESS_TOKEN_KEY
+  );
+}
+
+
+export function clearAccessToken() {
+  localStorage.removeItem(
+    ACCESS_TOKEN_KEY
+  );
+}
+
+
+async function request(
+  path: string,
+  options: RequestInit = {},
+) {
+
+  const token = getAccessToken();
+
+  const response = await fetch(
+    `${API_BASE_URL}${path}`,
+    {
+      ...options,
+
+      headers: {
+        "Content-Type":
+          "application/json",
+
+        ...(token
+          ? {
+              Authorization:
+                `Bearer ${token}`,
+            }
+          : {}),
+
+        ...(options.headers || {}),
+      },
+    }
+  );
+
+  const data =
+    await response
+      .json()
+      .catch(() => ({}));
+
+  if (!response.ok) {
+
+    throw new Error(
+      typeof data?.detail === "string"
+        ? data.detail
+        : "Server request failed"
+    );
+  }
+
+  return data;
+}
+
+
+export async function apiHealth() {
+  return request(
+    "/api/health"
+  );
+}
+
+
+export async function apiLogin(
+  phone: string,
+  password: string,
+) {
+
+  const result =
+    await request(
+      "/api/auth/login",
+      {
+        method: "POST",
+
+        body: JSON.stringify({
+          phone,
+          password,
+        }),
+      }
+    );
+
+  if (result?.access_token) {
+    setAccessToken(
+      result.access_token
+    );
+  }
+
+  return result;
+}
+
+
+export async function apiRegister(
+  name: string,
+  phone: string,
+  password: string,
+  role:
+    | "patient"
+    | "caregiver"
+    | "doctor" = "patient",
+) {
+
+  return request(
+    "/api/auth/register",
+    {
+      method: "POST",
+
+      body: JSON.stringify({
+        name,
+        phone,
+        password,
+        role,
+      }),
+    }
+  );
+}
+
+
+export async function apiMe() {
+  return request(
+    "/api/auth/me"
+  );
+}
+
+
+export async function apiGetProfile(
+  userId: number
+) {
+  return request(
+    `/api/medical/patients/${userId}/profile`
+  );
+}
+
+
+export async function apiSaveProfile(
+  userId: number,
+  profile: unknown
+) {
+  return request(
+    `/api/medical/patients/${userId}/profile`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        ...(profile as object),
+        user_id: userId,
+      }),
+    }
+  );
+}
+
+
+export type ApiVital = {
+  id: number | string;
+  type: string;
+  value: number;
+  value2?: number | null;
+  context?: string | null;
+  recorded_at: string;
+};
+
+export async function apiGetVitals(
+  userId: number
+): Promise<{ status: string; vitals: ApiVital[] }> {
+  return request(
+    `/api/medical/patients/${userId}/vitals`
+  );
+}
+
+
+export async function apiAddVital(
+  vital: unknown
+) {
+  return request(
+    "/api/medical/vitals",
+    {
+      method: "POST",
+      body: JSON.stringify(vital),
+    }
+  );
+}
+
+export async function apiRequestOtp(phone: string) {
+  return request("/api/auth/request-otp", {
+    method: "POST",
+    body: JSON.stringify({ phone }),
+  });
+}
+
+export async function apiVerifyOtp(phone: string, code: string) {
+  const result = await request("/api/auth/verify-otp", {
+    method: "POST",
+    body: JSON.stringify({ phone, code }),
+  });
+
+  if (result?.access_token) {
+    setAccessToken(result.access_token);
+  }
+
+  return result;
+}
+
+export async function apiCompleteRegistration(data: {
+  registration_token: string;
+  name: string;
+  role: "patient" | "caregiver" | "doctor";
+  national_id?: string;
+  age?: number;
+  height_cm?: number;
+  weight_kg?: number;
+  gender?: string;
+  blood_type?: string;
+  caregiver_phone?: string;
+  conditions?: string[];
+  allergies?: string;
+  smoker?: boolean;
+}) {
+  const result = await request("/api/auth/complete-registration", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+  if (result?.access_token) {
+    setAccessToken(result.access_token);
+  }
+
+  return result;
+}

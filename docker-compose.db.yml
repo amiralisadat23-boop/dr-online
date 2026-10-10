@@ -1,0 +1,21 @@
+﻿services:
+  postgres:
+    image: postgres:16
+    container_name: dr-online-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dr_online
+      POSTGRES_USER: dr_online_user
+      POSTGRES_PASSWORD: DrOnline_DB_2026_Secure!
+    ports:
+      - "5432:5432"
+    volumes:
+      - dr_online_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dr_online_user -d dr_online"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  dr_online_postgres_data:

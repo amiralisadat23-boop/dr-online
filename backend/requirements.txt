@@ -1,0 +1,10 @@
+﻿fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic-settings
+python-dotenv
+argon2-cffi
+python-multipart
+pyjwt
+aiosqlite
+httpx

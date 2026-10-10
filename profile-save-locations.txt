@@ -1,0 +1,351 @@
+﻿
+  src\pages\AppPages.tsx:38:
+  src\pages\AppPages.tsx:39:        if (apiProfile) {
+  src\pages\AppPages.tsx:40:          setProfile({
+  src\pages\AppPages.tsx:41:            id: String(apiProfile.id ?? crypto.randomUUID()),
+  src\pages\AppPages.tsx:42:            userId: patientUserId,
+> src\pages\AppPages.tsx:43:            nationalId: apiProfile.national_id,
+  src\pages\AppPages.tsx:44:            age: apiProfile.age,
+> src\pages\AppPages.tsx:45:            heightCm: apiProfile.height_cm,
+> src\pages\AppPages.tsx:46:            weightKg: apiProfile.weight_kg,
+  src\pages\AppPages.tsx:47:            gender: apiProfile.gender as PatientProfile["gender"],
+> src\pages\AppPages.tsx:48:            bloodType: apiProfile.blood_type,
+> src\pages\AppPages.tsx:49:            caregiverPhone: apiProfile.caregiver_phone,
+> src\pages\AppPages.tsx:50:            conditions: apiProfile.conditions,
+  src\pages\AppPages.tsx:51:            allergies: apiProfile.allergies,
+  src\pages\AppPages.tsx:52:            smoker: apiProfile.smoker,
+  src\pages\AppPages.tsx:53:          });
+  src\pages\AppPages.tsx:54:        }
+  src\pages\AppPages.tsx:55:      } catch (error) {
+  src\pages\AppPages.tsx:56:        console.warn("Profile API unavailable, using local cache:", error);
+  src\pages\AppPages.tsx:57:
+  src\pages\AppPages.tsx:58:        setProfile(
+  src\pages\AppPages.tsx:59:          await db.profiles.where("userId").equals(patientUserId).first(),
+  src\pages\AppPages.tsx:60:        );
+  src\pages\AppPages.tsx:394:      userId: user.id,
+  src\pages\AppPages.tsx:395:      role: "assistant",
+  src\pages\AppPages.tsx:396:      content: assistantReply(text, profile, vitals, user.role),
+  src\pages\AppPages.tsx:397:      at: Date.now() + 1,
+  src\pages\AppPages.tsx:398:    };
+> src\pages\AppPages.tsx:399:    await db.chats.bulkAdd([await sealChat(mine), await sealChat(reply)]);
+  src\pages\AppPages.tsx:400:    setMessages((m) => [...m, mine, reply]);
+  src\pages\AppPages.tsx:401:    setText("");
+  src\pages\AppPages.tsx:402:  }
+  src\pages\AppPages.tsx:403:
+  src\pages\AppPages.tsx:404:  return (
+  src\pages\AppPages.tsx:405:    <div className="flex flex-col min-h-[70vh]">
+  src\pages\AppPages.tsx:406:      <h2 className="text-2xl font-extrabold">همراه هوشمند</h2>
+  src\pages\AppPages.tsx:407:      {user?.role !== "patient" && (
+  src\pages\AppPages.tsx:408:        <select
+  src\pages\AppPages.tsx:409:          className="mt-3 h-11 rounded-2xl bg-white px-3"
+  src\pages\CompleteRegistration.tsx:67:        height_cm: height ? Number(height) : undefined,
+  src\pages\CompleteRegistration.tsx:68:        weight_kg: weight ? Number(weight) : undefined,
+  src\pages\CompleteRegistration.tsx:69:        gender: gender || undefined,
+  src\pages\CompleteRegistration.tsx:70:        blood_type: bloodType || undefined,
+  src\pages\CompleteRegistration.tsx:71:        caregiver_phone: caregiverPhone.trim() || undefined,
+> src\pages\CompleteRegistration.tsx:72:        conditions: conditions
+  src\pages\CompleteRegistration.tsx:73:          .split(",")
+  src\pages\CompleteRegistration.tsx:74:          .map((item) => item.trim())
+  src\pages\CompleteRegistration.tsx:75:          .filter(Boolean),
+  src\pages\CompleteRegistration.tsx:76:        allergies: allergies.trim() || undefined,
+  src\pages\CompleteRegistration.tsx:77:        smoker,
+  src\pages\CompleteRegistration.tsx:78:      });
+  src\pages\CompleteRegistration.tsx:79:
+  src\pages\CompleteRegistration.tsx:80:      if (result?.error) {
+  src\pages\CompleteRegistration.tsx:81:        setError(result.error);
+  src\pages\CompleteRegistration.tsx:82:        return;
+  src\pages\Welcome.tsx:334:
+  src\pages\Welcome.tsx:335:  const [form, setForm] = useState({
+  src\pages\Welcome.tsx:336:    name: "",
+  src\pages\Welcome.tsx:337:    phone: "",
+  src\pages\Welcome.tsx:338:    password: "",
+> src\pages\Welcome.tsx:339:    nationalId: "",
+  src\pages\Welcome.tsx:340:    age: "45",
+> src\pages\Welcome.tsx:341:    heightCm: "165",
+> src\pages\Welcome.tsx:342:    weightKg: "70",
+  src\pages\Welcome.tsx:343:    gender: "زن" as "زن" | "مرد",
+> src\pages\Welcome.tsx:344:    bloodType: "A+",
+> src\pages\Welcome.tsx:345:    caregiverPhone: "",
+  src\pages\Welcome.tsx:346:    allergies: "",
+> src\pages\Welcome.tsx:347:    conditions: [] as string[],
+  src\pages\Welcome.tsx:348:    relation: "فرزند",
+> src\pages\Welcome.tsx:349:    patientNationalId: "",
+  src\pages\Welcome.tsx:350:  });
+  src\pages\Welcome.tsx:351:
+  src\pages\Welcome.tsx:352:  const set = (k: string, v: string) =>
+  src\pages\Welcome.tsx:353:    setForm((f) => ({ ...f, [k]: v }));
+  src\pages\Welcome.tsx:354:
+  src\pages\Welcome.tsx:355:  return (
+  src\pages\Welcome.tsx:356:    <div className="phone-shell bg-paper min-h-dvh px-5 pt-10 pb-10">
+  src\pages\Welcome.tsx:357:      <Link to={`/login/${role}`} className="text-sm text-teal">
+  src\pages\Welcome.tsx:358:        بازگشت
+  src\pages\Welcome.tsx:359:      </Link>
+  src\pages\Welcome.tsx:374:          const err = await register({
+  src\pages\Welcome.tsx:375:            role,
+  src\pages\Welcome.tsx:376:            name: form.name,
+  src\pages\Welcome.tsx:377:            phone: form.phone,
+  src\pages\Welcome.tsx:378:            password: form.password,
+> src\pages\Welcome.tsx:379:            nationalId: form.nationalId,
+  src\pages\Welcome.tsx:380:            age: Number(form.age),
+> src\pages\Welcome.tsx:381:            heightCm: Number(form.heightCm),
+> src\pages\Welcome.tsx:382:            weightKg: Number(form.weightKg),
+  src\pages\Welcome.tsx:383:            gender: form.gender,
+> src\pages\Welcome.tsx:384:            bloodType: form.bloodType,
+> src\pages\Welcome.tsx:385:            caregiverPhone: form.caregiverPhone,
+> src\pages\Welcome.tsx:386:            conditions: form.conditions,
+  src\pages\Welcome.tsx:387:            allergies: form.allergies,
+  src\pages\Welcome.tsx:388:            relation: form.relation,
+> src\pages\Welcome.tsx:389:            patientNationalId: form.patientNationalId,
+  src\pages\Welcome.tsx:390:          });
+  src\pages\Welcome.tsx:391:
+  src\pages\Welcome.tsx:392:          if (err) {
+  src\pages\Welcome.tsx:393:            setError(err);
+  src\pages\Welcome.tsx:394:          } else {
+  src\pages\Welcome.tsx:395:            navigate("/app");
+  src\pages\Welcome.tsx:396:          }
+  src\pages\Welcome.tsx:397:        }}
+  src\pages\Welcome.tsx:398:      >
+  src\pages\Welcome.tsx:399:        <Field
+  src\pages\Welcome.tsx:475:                    type="button"
+  src\pages\Welcome.tsx:476:                    key={c}
+  src\pages\Welcome.tsx:477:                    onClick={() =>
+  src\pages\Welcome.tsx:478:                      setForm((f) => ({
+  src\pages\Welcome.tsx:479:                        ...f,
+> src\pages\Welcome.tsx:480:                        conditions: on
+  src\pages\Welcome.tsx:481:                          ? f.conditions.filter((x) => x !== c)
+  src\pages\Welcome.tsx:482:                          : [...f.conditions, c],
+  src\pages\Welcome.tsx:483:                      }))
+  src\pages\Welcome.tsx:484:                    }
+  src\pages\Welcome.tsx:485:                    className={`px-3 py-1.5 rounded-full text-sm ${
+  src\pages\Welcome.tsx:486:                      on
+  src\pages\Welcome.tsx:487:                        ? "bg-teal text-white"
+  src\pages\Welcome.tsx:488:                        : "bg-white"
+  src\pages\Welcome.tsx:489:                    }`}
+  src\pages\Welcome.tsx:490:                  >
+  src\auth.tsx:130:    id: `api-${String(apiUser.id)}`,
+  src\auth.tsx:131:    role: apiUser.role as Role,
+  src\auth.tsx:132:    name: apiUser.name,
+  src\auth.tsx:133:    phone: apiUser.phone,
+  src\auth.tsx:134:    passwordHash: "",
+> src\auth.tsx:135:    nationalId: undefined,
+  src\auth.tsx:136:  };
+  src\auth.tsx:137:}
+  src\auth.tsx:138:
+  src\auth.tsx:139:export function AuthProvider({
+  src\auth.tsx:140:  children,
+  src\auth.tsx:141:}: {
+  src\auth.tsx:142:  children: React.ReactNode;
+  src\auth.tsx:143:}) {
+  src\auth.tsx:144:  const [user, setUser] =
+  src\auth.tsx:145:    useState<PublicUser | null>(null);
+  src\auth.tsx:488:                .where("userId")
+  src\auth.tsx:489:                .equals(localUser.id)
+  src\auth.tsx:490:                .first();
+  src\auth.tsx:491:
+  src\auth.tsx:492:            if (!existingProfile) {
+> src\auth.tsx:493:              await db.profiles.add({
+  src\auth.tsx:494:                id: crypto.randomUUID(),
+  src\auth.tsx:495:                userId: localUser.id,
+> src\auth.tsx:496:                nationalId:
+  src\auth.tsx:497:                  payload.nationalId || "",
+  src\auth.tsx:498:                age:
+  src\auth.tsx:499:                  payload.age || 0,
+> src\auth.tsx:500:                heightCm:
+  src\auth.tsx:501:                  payload.heightCm || 0,
+> src\auth.tsx:502:                weightKg:
+  src\auth.tsx:503:                  payload.weightKg || 0,
+  src\auth.tsx:504:                gender:
+  src\auth.tsx:505:                  payload.gender || "زن",
+> src\auth.tsx:506:                bloodType:
+  src\auth.tsx:507:                  payload.bloodType ||
+  src\auth.tsx:508:                  "نامشخص",
+> src\auth.tsx:509:                caregiverPhone:
+  src\auth.tsx:510:                  payload.caregiverPhone ||
+  src\auth.tsx:511:                  "",
+> src\auth.tsx:512:                conditions:
+  src\auth.tsx:513:                  payload.conditions || [],
+  src\auth.tsx:514:                allergies:
+  src\auth.tsx:515:                  payload.allergies ||
+  src\auth.tsx:516:                  "ندارد",
+  src\auth.tsx:517:                smoker: false,
+  src\auth.tsx:518:              });
+  src\auth.tsx:519:            }
+  src\auth.tsx:520:          }
+  src\auth.tsx:521:
+  src\auth.tsx:522:          await writeSession(
+  src\auth.tsx:593:                .where("userId")
+  src\auth.tsx:594:                .equals(localUser.id)
+  src\auth.tsx:595:                .first();
+  src\auth.tsx:596:
+  src\auth.tsx:597:            if (!existingProfile) {
+> src\auth.tsx:598:              await db.profiles.add({
+  src\auth.tsx:599:                id: crypto.randomUUID(),
+  src\auth.tsx:600:                userId: localUser.id,
+> src\auth.tsx:601:                nationalId: data.national_id || "",
+  src\auth.tsx:602:                age: data.age || 0,
+> src\auth.tsx:603:                heightCm: data.height_cm || 0,
+> src\auth.tsx:604:                weightKg: data.weight_kg || 0,
+  src\auth.tsx:605:                gender: data.gender === "زن" || data.gender === "مرد" ? data.gender : "نامشخص",
+> src\auth.tsx:606:                bloodType: data.blood_type || "نامشخص",
+> src\auth.tsx:607:                caregiverPhone: data.caregiver_phone || "",
+> src\auth.tsx:608:                conditions: data.conditions || [],
+  src\auth.tsx:609:                allergies: data.allergies || "ندارد",
+  src\auth.tsx:610:                smoker: data.smoker || false,
+  src\auth.tsx:611:              });
+  src\auth.tsx:612:            }
+  src\auth.tsx:613:          }
+  src\auth.tsx:614:
+  src\auth.tsx:615:          await writeSession(localUser.id);
+  src\auth.tsx:616:          clearPendingRegistration();
+  src\auth.tsx:617:          setUser(toPublic(localUser));
+  src\auth.tsx:618:
+  src\seed.ts:23:  const patientId = "p-sara";
+  src\seed.ts:24:  const patient2Id = "p-ali";
+  src\seed.ts:25:  const caregiverId = "c-maryam";
+  src\seed.ts:26:  const doctorId = "d-rezaei";
+  src\seed.ts:27:
+> src\seed.ts:28:  await db.users.bulkAdd([
+  src\seed.ts:29:    {
+  src\seed.ts:30:      id: patientId,
+  src\seed.ts:31:      role: "patient",
+  src\seed.ts:32:      name: "سارا محمدی",
+  src\seed.ts:33:      phone: "09120001111",
+  src\seed.ts:34:      passwordHash: demoHash,
+> src\seed.ts:35:      nationalId: "0012345678",
+  src\seed.ts:36:    },
+  src\seed.ts:37:    {
+  src\seed.ts:38:      id: patient2Id,
+  src\seed.ts:39:      role: "patient",
+  src\seed.ts:40:      name: "علی کریمی",
+  src\seed.ts:41:      phone: "09120002222",
+  src\seed.ts:42:      passwordHash: demoHash,
+> src\seed.ts:43:      nationalId: "0012345679",
+  src\seed.ts:44:    },
+  src\seed.ts:45:    {
+  src\seed.ts:46:      id: caregiverId,
+  src\seed.ts:47:      role: "caregiver",
+  src\seed.ts:48:      name: "مریم محمدی",
+  src\seed.ts:49:      phone: "09121234567",
+  src\seed.ts:50:      passwordHash: demoHash,
+  src\seed.ts:51:    },
+  src\seed.ts:52:    {
+  src\seed.ts:53:      id: doctorId,
+  src\seed.ts:56:      phone: "09127654321",
+  src\seed.ts:57:      passwordHash: demoHash,
+  src\seed.ts:58:    },
+  src\seed.ts:59:  ]);
+  src\seed.ts:60:
+> src\seed.ts:61:  await db.profiles.bulkAdd([
+  src\seed.ts:62:    {
+  src\seed.ts:63:      id: uid(),
+  src\seed.ts:64:      userId: patientId,
+> src\seed.ts:65:      nationalId: "0012345678",
+  src\seed.ts:66:      age: 54,
+> src\seed.ts:67:      heightCm: 162,
+> src\seed.ts:68:      weightKg: 71,
+  src\seed.ts:69:      gender: "زن",
+> src\seed.ts:70:      bloodType: "A+",
+> src\seed.ts:71:      caregiverPhone: "09121234567",
+> src\seed.ts:72:      conditions: ["دیابت نوع ۲", "فشار خون"],
+  src\seed.ts:73:      allergies: "پنی‌سیلین",
+  src\seed.ts:74:      sleepHours: 6,
+  src\seed.ts:75:      smoker: false,
+  src\seed.ts:76:    },
+  src\seed.ts:77:    {
+  src\seed.ts:78:      id: uid(),
+  src\seed.ts:79:      userId: patient2Id,
+> src\seed.ts:80:      nationalId: "0012345679",
+  src\seed.ts:81:      age: 67,
+> src\seed.ts:82:      heightCm: 174,
+> src\seed.ts:83:      weightKg: 82,
+  src\seed.ts:84:      gender: "مرد",
+> src\seed.ts:85:      bloodType: "O+",
+> src\seed.ts:86:      caregiverPhone: "09121234567",
+> src\seed.ts:87:      conditions: ["نارسایی قلبی خفیف"],
+  src\seed.ts:88:      allergies: "ندارد",
+  src\seed.ts:89:      sleepHours: 7,
+  src\seed.ts:90:      smoker: true,
+  src\seed.ts:91:    },
+  src\seed.ts:92:  ]);
+  src\seed.ts:93:
+> src\seed.ts:94:  await db.links.bulkAdd([
+  src\seed.ts:95:    { id: uid(), fromUserId: caregiverId, patientUserId: patientId, relation: "دختر", kind: "care" },
+  src\seed.ts:96:    { id: uid(), fromUserId: caregiverId, patientUserId: patient2Id, relation: "عمو", kind: "care" },
+  src\seed.ts:97:    { id: uid(), fromUserId: doctorId, patientUserId: patientId, relation: "فوق تخصص غدد", kind: 
+"doctor" },
+  src\seed.ts:98:    { id: uid(), fromUserId: doctorId, patientUserId: patient2Id, relation: "قلب و عروق", kind: 
+"doctor" },
+  src\seed.ts:99:  ]);
+  src\seed.ts:100:
+> src\seed.ts:101:  await db.medications.bulkAdd([
+  src\seed.ts:102:    { id: uid(), patientUserId: patientId, name: "متفورمین", dose: "۵۰۰ میلی‌گرم", schedule: "صبح و 
+شب بعد غذا" },
+  src\seed.ts:103:    { id: uid(), patientUserId: patientId, name: "لوزارتان", dose: "۵۰ میلی‌گرم", schedule: "هر صبح" 
+},
+  src\seed.ts:104:    { id: uid(), patientUserId: patient2Id, name: "آسپرین", dose: "۸۰ میلی‌گرم", schedule: "هر شب" },
+  src\seed.ts:105:  ]);
+  src\seed.ts:106:
+  src\seed.ts:107:  const sugar: Vital[] = [118, 142, 96, 188, 131].map((v, i) => ({
+  src\seed.ts:108:    id: uid(),
+  src\seed.ts:109:    patientUserId: patientId,
+  src\seed.ts:110:    type: "sugar",
+  src\seed.ts:111:    value: v,
+  src\seed.ts:123:    value: v.s,
+  src\seed.ts:124:    value2: v.d,
+  src\seed.ts:125:    at: ago(i * 12 + 3),
+  src\seed.ts:126:  }));
+  src\seed.ts:127:
+> src\seed.ts:128:  await db.vitals.bulkAdd([
+  src\seed.ts:129:    ...sugar,
+  src\seed.ts:130:    ...bp,
+  src\seed.ts:131:    { id: uid(), patientUserId: patientId, type: "hr", value: 78, at: ago(4) },
+  src\seed.ts:132:    { id: uid(), patientUserId: patientId, type: "weight", value: 71, at: ago(24) },
+  src\seed.ts:133:    { id: uid(), patientUserId: patientId, type: "o2", value: 97, at: ago(5) },
+  src\seed.ts:134:    { id: uid(), patientUserId: patient2Id, type: "hr", value: 92, at: ago(3) },
+  src\seed.ts:135:    { id: uid(), patientUserId: patient2Id, type: "bp", value: 138, value2: 86, at: ago(6) },
+  src\seed.ts:136:    { id: uid(), patientUserId: patient2Id, type: "o2", value: 94, at: ago(3) },
+  src\seed.ts:137:  ]);
+  src\seed.ts:138:
+> src\seed.ts:139:  await db.notes.bulkAdd([
+  src\seed.ts:140:    {
+  src\seed.ts:141:      id: uid(),
+  src\seed.ts:142:      authorId: caregiverId,
+  src\seed.ts:143:      patientUserId: patientId,
+  src\seed.ts:144:      body: "امروز داروی صبح را سر وقت خورد. کمی خستگی بعد از پیاده‌روی داشت.",
+  src\seed.ts:145:      kind: "caregiver",
+  src\seed.ts:146:      at: ago(6),
+  src\seed.ts:147:    },
+  src\seed.ts:148:    {
+  src\seed.ts:149:      id: uid(),
+  src\seed.ts:173:      level: "info",
+  src\seed.ts:174:      at: ago(3),
+  src\seed.ts:175:      read: false,
+  src\seed.ts:176:    },
+  src\seed.ts:177:  ];
+> src\seed.ts:178:  await db.alerts.bulkAdd(alerts);
+  src\seed.ts:179:}
+  src\types.ts:12:export type PublicUser = Omit<User, "passwordHash">;
+  src\types.ts:13:
+  src\types.ts:14:export type PatientProfile = {
+  src\types.ts:15:  id: string;
+  src\types.ts:16:  userId: string;
+> src\types.ts:17:  nationalId: string;
+  src\types.ts:18:  age: number;
+> src\types.ts:19:  heightCm: number;
+> src\types.ts:20:  weightKg: number;
+  src\types.ts:21:  gender: "زن" | "مرد" | "نامشخص";
+> src\types.ts:22:  bloodType: string;
+> src\types.ts:23:  caregiverPhone: string;
+> src\types.ts:24:  conditions: string[];
+  src\types.ts:25:  allergies: string;
+  src\types.ts:26:  sleepHours?: number;
+  src\types.ts:27:  smoker: boolean;
+  src\types.ts:28:};
+  src\types.ts:29:
+  src\types.ts:30:export type Link = {
+  src\types.ts:31:  id: string;
+  src\types.ts:32:  fromUserId: string;
+  src\types.ts:33:  patientUserId: string;
+  src\types.ts:34:  relation: string;
+
+

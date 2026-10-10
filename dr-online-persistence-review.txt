@@ -1,0 +1,560 @@
+﻿DR-ONLINE PERSISTENCE AND ACCESS REVIEW
+Generated: 2026-10-09 03:29:00
+Read-only source review. No database records changed.
+
+
+========== Medical API routes ==========
+1: from datetime import datetime, timezone
+2: from typing import Optional
+3: 
+4: from fastapi import APIRouter, Depends, HTTPException, status
+5: from pydantic import BaseModel
+6: from sqlalchemy import select
+7: from sqlalchemy.ext.asyncio import AsyncSession
+8: 
+9: from app.database import get_db
+10: from app.models.medical import PatientProfile, Vital
+11: from app.models.user import User
+12: from app.security.jwt import get_current_user, ensure_self_access
+13: 
+14: 
+15: router = APIRouter(
+16:     prefix="/medical",
+17:     tags=["Medical"],
+19: 
+20: 
+21: class PatientProfileRequest(BaseModel):
+22:     user_id: int
+23:     national_id: str
+24:     age: int
+25:     height_cm: float
+26:     weight_kg: float
+27:     gender: str
+33: 
+34: 
+35: class VitalRequest(BaseModel):
+36:     patient_user_id: int
+37:     type: str
+38:     value: float
+39:     value2: Optional[float] = None
+40:     context: Optional[str] = None
+41: 
+42: 
+43: @router.get("/patients/{user_id}/profile")
+44: async def read_profile(
+45:     user_id: int,
+46:     current_user: User = Depends(get_current_user),
+47:     db: AsyncSession = Depends(get_db),
+48: ):
+49:     ensure_self_access(current_user, user_id)
+50: 
+51:     result = await db.execute(
+52:         select(PatientProfile).where(
+53:             PatientProfile.user_id == user_id
+54:         )
+55:     )
+56: 
+57:     profile = result.scalar_one_or_none()
+58: 
+66:         "status": "ok",
+67:         "profile": {
+68:             "id": profile.id,
+69:             "user_id": profile.user_id,
+70:             "national_id": profile.national_id,
+71:             "age": profile.age,
+72:             "height_cm": profile.height_cm,
+73:             "weight_kg": profile.weight_kg,
+74:             "gender": profile.gender,
+85:     }
+86: 
+87: 
+88: @router.put("/patients/{user_id}/profile")
+89: async def update_profile(
+90:     user_id: int,
+91:     data: PatientProfileRequest,
+92:     current_user: User = Depends(get_current_user),
+93:     db: AsyncSession = Depends(get_db),
+94: ):
+95:     ensure_self_access(current_user, user_id)
+96: 
+97:     if data.user_id != user_id:
+98:         raise HTTPException(
+99:             status_code=status.HTTP_400_BAD_REQUEST,
+100:             detail="User ID mismatch",
+101:         )
+102: 
+103:     result = await db.execute(
+104:         select(PatientProfile).where(
+105:             PatientProfile.user_id == user_id
+106:         )
+107:     )
+108: 
+109:     profile = result.scalar_one_or_none()
+110: 
+112: 
+113:     if profile is None:
+114:         profile = PatientProfile(
+115:             user_id=user_id,
+116:             national_id=data.national_id,
+117:             age=data.age,
+118:             height_cm=data.height_cm,
+119:             weight_kg=data.weight_kg,
+120:             gender=data.gender,
+146:         "status": "ok",
+147:         "profile": {
+148:             "id": profile.id,
+149:             "user_id": profile.user_id,
+150:             "national_id": profile.national_id,
+151:             "age": profile.age,
+152:             "height_cm": profile.height_cm,
+153:             "weight_kg": profile.weight_kg,
+154:             "gender": profile.gender,
+164: @router.post("/vitals")
+165: async def create_vital(
+166:     data: VitalRequest,
+167:     current_user: User = Depends(get_current_user),
+168:     db: AsyncSession = Depends(get_db),
+169: ):
+170:     ensure_self_access(current_user, data.patient_user_id)
+171: 
+172:     vital = Vital(
+173:         patient_user_id=data.patient_user_id,
+174:         type=data.type,
+175:         value=data.value,
+176:         value2=data.value2,
+177:         context=data.context,
+178:         recorded_at=datetime.now(timezone.utc).isoformat(),
+187:         "status": "ok",
+188:         "vital": {
+189:             "id": vital.id,
+190:             "patient_user_id": vital.patient_user_id,
+191:             "type": vital.type,
+192:             "value": vital.value,
+193:             "value2": vital.value2,
+194:             "context": vital.context,
+195:             "recorded_at": vital.recorded_at,
+197:     }
+198: 
+199: 
+200: @router.get("/patients/{user_id}/vitals")
+201: async def read_vitals(
+202:     user_id: int,
+203:     current_user: User = Depends(get_current_user),
+204:     db: AsyncSession = Depends(get_db),
+205: ):
+206:     ensure_self_access(current_user, user_id)
+207: 
+208:     result = await db.execute(
+209:         select(Vital)
+210:         .where(Vital.patient_user_id == user_id)
+211:         .order_by(Vital.recorded_at.desc())
+212:     )
+213: 
+214:     vitals = result.scalars().all()
+215: 
+218:         "vitals": [
+219:             {
+220:                 "id": vital.id,
+221:                 "patient_user_id": vital.patient_user_id,
+222:                 "type": vital.type,
+223:                 "value": vital.value,
+224:                 "value2": vital.value2,
+225:                 "context": vital.context,
+226:                 "recorded_at": vital.recorded_at,
+
+========== Medical database module ==========
+1: import sqlite3
+2: from pathlib import Path
+3: from typing import Optional
+4: 
+5: DB_PATH = Path(__file__).resolve().parent.parent / "medical_data.db"
+6: 
+7: 
+8: def get_connection():
+9:     connection = sqlite3.connect(DB_PATH)
+10:     connection.row_factory = sqlite3.Row
+11:     return connection
+12: 
+13: 
+14: def init_medical_db():
+15:     connection = get_connection()
+16: 
+17:     connection.execute(
+18:         """
+19:         CREATE TABLE IF NOT EXISTS patient_profiles (
+20:             id INTEGER PRIMARY KEY AUTOINCREMENT,
+21:             user_id INTEGER NOT NULL UNIQUE,
+22:             national_id TEXT,
+23:             age INTEGER,
+24:             height_cm REAL,
+33:         """
+34:     )
+35: 
+36:     connection.execute(
+37:         """
+38:         CREATE TABLE IF NOT EXISTS vitals (
+39:             id INTEGER PRIMARY KEY AUTOINCREMENT,
+40:             patient_user_id INTEGER NOT NULL,
+41:             type TEXT NOT NULL,
+47:         """
+48:     )
+49: 
+50:     connection.commit()
+51:     connection.close()
+52: 
+53: 
+54: def get_profile(user_id: int):
+55:     connection = get_connection()
+56: 
+57:     row = connection.execute(
+58:         """
+59:         SELECT *
+60:         FROM patient_profiles
+61:         WHERE user_id = ?
+62:         """,
+63:         (user_id,),
+64:     ).fetchone()
+65: 
+68:     return dict(row) if row else None
+69: 
+70: 
+71: def save_profile(
+72:     user_id: int,
+73:     national_id: Optional[str] = None,
+74:     age: Optional[int] = None,
+75:     height_cm: Optional[float] = None,
+76:     weight_kg: Optional[float] = None,
+83: ):
+84:     connection = get_connection()
+85: 
+86:     connection.execute(
+87:         """
+88:         INSERT INTO patient_profiles (
+89:             user_id,
+90:             national_id,
+91:             age,
+92:             height_cm,
+93:             weight_kg,
+127:         ),
+128:     )
+129: 
+130:     connection.commit()
+131: 
+132:     row = connection.execute(
+133:         """
+134:         SELECT *
+135:         FROM patient_profiles
+136:         WHERE user_id = ?
+137:         """,
+138:         (user_id,),
+139:     ).fetchone()
+140: 
+153: ):
+154:     connection = get_connection()
+155: 
+156:     cursor = connection.execute(
+157:         """
+158:         INSERT INTO vitals (
+159:             patient_user_id,
+160:             type,
+161:             value,
+175:         ),
+176:     )
+177: 
+178:     connection.commit()
+179: 
+180:     row = connection.execute(
+181:         """
+182:         SELECT *
+183:         FROM vitals
+184:         WHERE id = ?
+185:         """,
+194: def get_vitals(patient_user_id: int):
+195:     connection = get_connection()
+196: 
+197:     rows = connection.execute(
+198:         """
+199:         SELECT *
+200:         FROM vitals
+201:         WHERE patient_user_id = ?
+202:         ORDER BY recorded_at DESC
+
+========== Database configuration ==========
+2: 
+3: from dotenv import load_dotenv
+4: from sqlalchemy.ext.asyncio import (
+5:     create_async_engine,
+6:     async_sessionmaker,
+7:     AsyncSession,
+8: )
+9: from sqlalchemy.orm import DeclarativeBase
+10: 
+11: load_dotenv()
+12: 
+13: [SENSITIVE CONFIGURATION LINE OMITTED]
+14: 
+15: [SENSITIVE CONFIGURATION LINE OMITTED]
+16: [SENSITIVE CONFIGURATION LINE OMITTED]
+17: 
+18: [SENSITIVE CONFIGURATION LINE OMITTED]
+19:     raise RuntimeError(
+20: [SENSITIVE CONFIGURATION LINE OMITTED]
+21:     )
+22: 
+23: engine = create_async_engine(
+24: [SENSITIVE CONFIGURATION LINE OMITTED]
+25:     echo=False,
+26:     pool_pre_ping=True,
+27: )
+28: 
+29: SessionLocal = async_sessionmaker(
+30:     engine,
+31:     expire_on_commit=False,
+32: )
+33: 
+34: class Base(DeclarativeBase):
+
+========== Frontend profile loading ==========
+4: import { db, openChat, openNote, sealChat, sealNote } from "../db";
+5: import { useAuth } from "../auth";
+6: import { alertFromVital, assessVital, assistantReply } from "../ai";
+7: import type { Alert, ChatMessage, Medication, Note, PatientProfile, User, Vital, VitalType } from "../types";
+8: 
+9: import { apiGetProfile, apiSaveProfile, apiGetVitals, apiAddVital } from "../api";
+10: 
+11: function getBackendUserId(localId: string): number | null {
+12:   const match = /^api-(\d+)$/.exec(localId);
+13:   if (!match) return null;
+14:   const id = Number(match[1]);
+15:   return Number.isSafeInteger(id) && id > 0 ? id : null;
+16: }
+17: function usePatientBundle(patientUserId?: string) {
+18:   const [profile, setProfile] = useState<PatientProfile | undefined>();
+19:   const [patient, setPatient] = useState<User | undefined>();
+20:   const [vitals, setVitals] = useState<Vital[]>([]);
+21:   const [meds, setMeds] = useState<Medication[]>([]);
+22:   const [notes, setNotes] = useState<Note[]>([]);
+23:   const [alerts, setAlerts] = useState<Alert[]>([]);
+30:         if (backendUserId === null) {
+31:           throw new Error("No numeric backend user ID for this local user.");
+32:         }
+33:         const apiProfileResponse = await apiGetProfile(backendUserId);
+34:         const apiProfile = apiProfileResponse?.profile;
+35:         if (!apiProfile) {
+36:           throw new Error("No profile returned by backend.");
+37:         }
+38: 
+39:         if (apiProfile) {
+40:           setProfile({
+41:             id: String(apiProfile.id ?? crypto.randomUUID()),
+42:             userId: patientUserId,
+43:             nationalId: apiProfile.national_id,
+44:             age: apiProfile.age,
+45:             heightCm: apiProfile.height_cm,
+46:             weightKg: apiProfile.weight_kg,
+47:             gender: apiProfile.gender as PatientProfile["gender"],
+48:             bloodType: apiProfile.blood_type,
+49:             caregiverPhone: apiProfile.caregiver_phone,
+50:             conditions: apiProfile.conditions,
+51:             allergies: apiProfile.allergies,
+52:             smoker: apiProfile.smoker,
+53:           });
+54:         }
+55:       } catch (error) {
+56:         console.warn("Profile API unavailable, using local cache:", error);
+57: 
+58:         setProfile(
+59:           await db.profiles.where("userId").equals(patientUserId).first(),
+60:         );
+61:       }
+62:     let allVitals: Vital[] = [];
+63: 
+64:       try {
+101:     reload();
+102:   }, [patientUserId]);
+103: 
+104:   return { profile, patient, vitals, meds, notes, alerts, reload };
+105: }
+106: 
+107: export function PatientHome() {
+108:   const { user } = useAuth();
+109:   const data = usePatientBundle(user?.id);
+110:   const last = (t: VitalType) => data.vitals.find((v) => v.type === t);
+111: 
+112:   return (
+113:     <div className="space-y-4 rise">
+114:       <Hero name={user?.name || ""} profile={data.profile} />
+115:       <div className="grid grid-cols-2 gap-3 stagger">
+116:         <VitalTile title="Ù‚Ù†Ø¯ Ø®ÙˆÙ†" unit="mg/dL" v={last("sugar")} />
+117:         <VitalTile title="ÙØ´Ø§Ø±" unit="mmHg" v={last("bp")} />
+118:         <VitalTile title="Ø¶Ø±Ø¨Ø§Ù†" unit="bpm" v={last("hr")} />
+119:         <VitalTile title="Ø§Ú©Ø³ÛŒÚ˜Ù†" unit="%" v={last("o2")} />
+137:   );
+138: }
+139: 
+140: function Hero({ name, profile }: { name: string; profile?: PatientProfile }) {
+141:   const bmi =
+142:     profile && profile.heightCm
+143:       ? (profile.weightKg / (profile.heightCm / 100) ** 2).toFixed(1)
+144:       : "â€”";
+145:   return (
+146:     <div className="rounded-[28px] p-5 text-white bg-gradient-to-br from-teal to-teal-deep">
+147:       <p className="opacity-80 text-sm">Ø³Ù„Ø§Ù…ØŒ Ø®ÙˆØ´ Ø§ÙˆÙ…Ø¯ÛŒ</p>
+148:       <h2 className="text-2xl font-extrabold mt-1">{name.split(" ")[0]} Ø¬Ø§Ù†</h2>
+149:       <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+150:         <Mini k="Ø³Ù†" v={profile?.age ?? "â€”"} />
+151:         <Mini k="Ù‚Ø¯" v={profile?.heightCm ? `${profile.heightCm}` : "â€”"} />
+152:         <Mini k="BMI" v={bmi} />
+153:       </div>
+154:     </div>
+155:   );
+156: }
+290: 
+291: export function PatientRecord() {
+292:   const { user } = useAuth();
+293:   const data = usePatientBundle(user?.id);
+294:   const p = data.profile;
+295:   return (
+296:     <div className="space-y-4 rise">
+297:       <h2 className="text-2xl font-extrabold">Ù¾Ø±ÙˆÙ†Ø¯Ù‡ Ù…Ù†</h2>
+298:       <div className="card rounded-3xl p-4 space-y-2 text-sm">
+299:         <Row k="Ú©Ø¯ Ù…Ù„ÛŒ" v={p?.nationalId} />
+387:   async function send() {
+388:     if (!user || !text.trim()) return;
+389:     const mine: ChatMessage = { id: crypto.randomUUID(), userId: user.id, role: "user", content: text, at: Date.now() };
+390:     const profile = await db.profiles.where("userId").equals(targetId).first();
+391:     const vitals = await db.vitals.where("patientUserId").equals(targetId).toArray();
+392:     const reply: ChatMessage = {
+393:       id: crypto.randomUUID(),
+394:       userId: user.id,
+395:       role: "assistant",
+396:       content: assistantReply(text, profile, vitals, user.role),
+397:       at: Date.now() + 1,
+398:     };
+399:     await db.chats.bulkAdd([await sealChat(mine), await sealChat(reply)]);
+400:     setMessages((m) => [...m, mine, reply]);
+401:     setText("");
+447: 
+448: export function MonitorHome() {
+449:   const { user } = useAuth();
+450:   const [rows, setRows] = useState<{ patient: User; profile?: PatientProfile; last?: Vital; alerts: number }[]>([]);
+451:   const [nid, setNid] = useState("");
+452: 
+453:   async function load() {
+454:     if (!user) return;
+455:     const links = await db.links.where("fromUserId").equals(user.id).toArray();
+457:     for (const l of links) {
+458:       const patient = await db.users.get(l.patientUserId);
+459:       if (!patient) continue;
+460:       const profile = await db.profiles.where("userId").equals(patient.id).first();
+461:       const vitals = await db.vitals.where("patientUserId").equals(patient.id).toArray();
+462:       const last = vitals.sort((a, b) => b.at - a.at)[0];
+463:       const alerts = await db.alerts.where("patientUserId").equals(patient.id).toArray();
+464:       out.push({ patient, profile, last, alerts: alerts.filter((a) => !a.read).length });
+465:     }
+466:     setRows(out);
+467:   }
+468: 
+469:   useEffect(() => {
+508:             <div>
+509:               <p className="font-bold">{r.patient.name}</p>
+510:               <p className="text-xs text-muted mt-1">
+511:                 {r.profile?.age} Ø³Ø§Ù„Ù‡ Â· {r.profile?.conditions.join("ØŒ ")}
+512:               </p>
+513:             </div>
+514:             {r.alerts > 0 && (
+515:               <span className="h-7 min-w-7 px-2 rounded-full bg-coral text-white text-xs grid place-items-center">
+516:                 {r.alerts}
+529: export function PatientDetail() {
+530:   const { id } = useParams();
+531:   const { user } = useAuth();
+532:   const data = usePatientBundle(id);
+533:   const [note, setNote] = useState("");
+534:   const [med, setMed] = useState({ name: "", dose: "", schedule: "" });
+535: 
+536:   return (
+537:     <div className="space-y-4 rise">
+541:         <VitalTile title="ÙØ´Ø§Ø±" unit="" v={data.vitals.find((v) => v.type === "bp")} />
+542:       </div>
+543:       <div className="card rounded-3xl p-4 text-sm space-y-2">
+544:         <Row k="Ú©Ø¯ Ù…Ù„ÛŒ" v={data.profile?.nationalId} />
+545:         <Row k="Ø´Ù…Ø§Ø±Ù‡ Ù…Ø±Ø§Ù‚Ø¨" v={data.profile?.caregiverPhone} />
+546:         <Row k="ØªÙ…Ø§Ø³ Ø¨ÛŒÙ…Ø§Ø±" v={data.patient?.phone} />
+547:         <Row k="Ù‚Ø¯ / ÙˆØ²Ù†" v={`${data.profile?.heightCm} / ${data.profile?.weightKg}`} />
+548:         <Row k="Ú¯Ø±ÙˆÙ‡ Ø®ÙˆÙ†ÛŒ" v={data.profile?.bloodType} />
+549:         <Row k="Ø­Ø³Ø§Ø³ÛŒØª" v={data.profile?.allergies} />
+550:       </div>
+551:       <SugarChart vitals={data.vitals} />
+552:       <Notes notes={data.notes} />
+553:       <div className="card rounded-3xl p-4 space-y-2">
+554:         <p className="font-bold">ÛŒØ§Ø¯Ø¯Ø§Ø´Øª Ø¬Ø¯ÛŒØ¯</p>
+
+========== Frontend API helpers ==========
+2:   import.meta.env.VITE_API_URL ||
+3:   "http://127.0.0.1:8000";
+4: 
+5: const ACCESS_TOKEN_KEY =
+6:   "dr-online-access-token";
+7: 
+8: 
+9: export function setAccessToken(
+10:   token: string
+11: ) {
+12:   localStorage.setItem(
+13:     ACCESS_TOKEN_KEY,
+14:     token
+15:   );
+16: }
+17: 
+18: 
+19: export function getAccessToken() {
+20:   return localStorage.getItem(
+21:     ACCESS_TOKEN_KEY
+22:   );
+23: }
+24: 
+25: 
+26: export function clearAccessToken() {
+27:   localStorage.removeItem(
+28:     ACCESS_TOKEN_KEY
+29:   );
+30: }
+31: 
+32: 
+33: async function request(
+48: 
+49:         ...(token
+50:           ? {
+51: [SENSITIVE CONFIGURATION LINE OMITTED]
+52:                 `Bearer ${token}`,
+53:             }
+54:           : {}),
+55: 
+56:         ...(options.headers || {}),
+137: }
+138: 
+139: 
+140: export async function apiMe() {
+141:   return request(
+142:     "/api/auth/me"
+143:   );
+144: }
+145: 
+146: 
+147: export async function apiGetProfile(
+148:   userId: number
+149: ) {
+150:   return request(
+151:     `/api/medical/patients/${userId}/profile`
+152:   );
+153: }
+154: 
+155: 
+156: export async function apiSaveProfile(
+157:   userId: number,
+158:   profile: unknown
+159: ) {
+160:   return request(
+161:     `/api/medical/patients/${userId}/profile`,
+
+========== END ==========

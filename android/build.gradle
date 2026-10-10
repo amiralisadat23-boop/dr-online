@@ -1,0 +1,23 @@
+buildscript {
+    repositories {
+        maven { url 'https://repo.huaweicloud.com/repository/maven/' }
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.7.2'
+    }
+}
+
+apply from: "variables.gradle"
+
+allprojects {
+    repositories {
+        maven { url 'https://repo.huaweicloud.com/repository/maven/' }
+        mavenCentral()
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

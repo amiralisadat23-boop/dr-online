@@ -1,0 +1,1353 @@
+﻿DR-ONLINE PROFILE DIAGNOSTICS
+Generated: 2026-10-09T03:35:28
+Read-only source inspection; no medical records modified.
+
+========== API PROFILE FUNCTIONS ==========
+130:         name,
+131:         phone,
+132:         password,
+133:         role,
+134:       }),
+135:     }
+136:   );
+137: }
+138: 
+139: 
+140: export async function apiMe() {
+141:   return request(
+142:     "/api/auth/me"
+143:   );
+144: }
+145: 
+146: 
+147: export async function apiGetProfile(
+148:   userId: number
+149: ) {
+150:   return request(
+151:     `/api/medical/patients/${userId}/profile`
+152:   );
+153: }
+154: 
+155: 
+156: export async function apiSaveProfile(
+157:   userId: number,
+158:   profile: unknown
+159: ) {
+160:   return request(
+161:     `/api/medical/patients/${userId}/profile`,
+162:     {
+163:       method: "PUT",
+164:       body: JSON.stringify({
+165:         ...(profile as object),
+166:         user_id: userId,
+167:       }),
+168:     }
+169:   );
+170: }
+171: 
+172: 
+173: export type ApiVital = {
+174:   id: number | string;
+175:   type: string;
+176:   value: number;
+177:   value2?: number | null;
+178:   context?: string | null;
+179:   recorded_at: string;
+180: };
+181: 
+182: export async function apiGetVitals(
+183:   userId: number
+184: ): Promise<{ status: string; vitals: ApiVital[] }> {
+185:   return request(
+186:     `/api/medical/patients/${userId}/vitals`
+187:   );
+188: }
+189: 
+190: 
+191: export async function apiAddVital(
+192:   vital: unknown
+193: ) {
+194:   return request(
+195:     "/api/medical/vitals",
+196:     {
+197:       method: "POST",
+198:       body: JSON.stringify(vital),
+199:     }
+200:   );
+201: }
+202: 
+203: export async function apiRequestOtp(phone: string) {
+204:   return request("/api/auth/request-otp", {
+205:     method: "POST",
+206:     body: JSON.stringify({ phone }),
+207:   });
+208: }
+209: 
+210: export async function apiVerifyOtp(phone: string, code: string) {
+211:   const result = await request("/api/auth/verify-otp", {
+212:     method: "POST",
+213:     body: JSON.stringify({ phone, code }),
+214:   });
+215: 
+216:   if (result?.access_token) {
+217:     setAccessToken(result.access_token);
+218:   }
+219: 
+220:   return result;
+221: }
+222: 
+223: export async function apiCompleteRegistration(data: {
+224:   registration_token: string;
+225:   name: string;
+226:   role: "patient" | "caregiver" | "doctor";
+227:   national_id?: string;
+228:   age?: number;
+229:   height_cm?: number;
+230:   weight_kg?: number;
+231:   gender?: string;
+232:   blood_type?: string;
+233:   caregiver_phone?: string;
+234:   conditions?: string[];
+235:   allergies?: string;
+236:   smoker?: boolean;
+237: }) {
+238:   const result = await request("/api/auth/complete-registration", {
+239:     method: "POST",
+240:     body: JSON.stringify(data),
+241:   });
+242: 
+243:   if (result?.access_token) {
+244:     setAccessToken(result.access_token);
+245:   }
+
+========== REGISTRATION PAGE ==========
+1: import { FormEvent, useState } from "react";
+2: import { useNavigate } from "react-router-dom";
+3: import { getPendingRegistration, useAuth } from "../auth";
+4: 
+5: export default function CompleteRegistration() {
+6:   const { completeRegistration } = useAuth();
+7:   const navigate = useNavigate();
+8: 
+9:   const pending = getPendingRegistration();
+10: 
+11:   const [name, setName] = useState("");
+12:   const [nationalId, setNationalId] = useState("");
+13:   const [age, setAge] = useState("");
+14:   const [height, setHeight] = useState("");
+15:   const [weight, setWeight] = useState("");
+16:   const [gender, setGender] = useState("");
+17:   const [bloodType, setBloodType] = useState("");
+18:   const [caregiverPhone, setCaregiverPhone] = useState("");
+19:   const [conditions, setConditions] = useState("");
+20:   const [allergies, setAllergies] = useState("");
+21:   const [smoker, setSmoker] = useState(false);
+22: 
+23:   const [busy, setBusy] = useState(false);
+24:   const [error, setError] = useState("");
+25: 
+26:   if (!pending.token || !pending.phone || !pending.role) {
+27:     return (
+28:       <div className="phone-shell bg-paper min-h-dvh p-6 grid place-items-center">
+29:         <div className="card rounded-3xl p-6 text-center">
+30:           <h1 className="text-xl font-extrabold">
+31:             فرایند ثبت‌نام منقضی شده است
+32:           </h1>
+33: 
+34:           <p className="text-muted mt-3">
+35:             لطفاً دوباره با شماره موبایل خود شروع کنید.
+36:           </p>
+37: 
+38:           <button
+39:             className="mt-6 w-full h-11 rounded-2xl bg-teal text-white font-bold"
+40:             onClick={() => navigate("/", { replace: true })}
+41:           >
+42:             بازگشت
+43:           </button>
+44:         </div>
+45:       </div>
+46:     );
+47:   }
+48: 
+49:   async function submit(event: FormEvent) {
+50:     event.preventDefault();
+51: 
+52:     setError("");
+53: 
+54:     if (!name.trim()) {
+55:       setError("نام و نام خانوادگی را وارد کنید.");
+56:       return;
+57:     }
+58: 
+59:     setBusy(true);
+60: 
+61:     try {
+62:       const result = await completeRegistration({
+63:         name: name.trim(),
+64:         role: pending.role!,
+65:         national_id: nationalId.trim() || undefined,
+66:         age: age ? Number(age) : undefined,
+67:         height_cm: height ? Number(height) : undefined,
+68:         weight_kg: weight ? Number(weight) : undefined,
+69:         gender: gender || undefined,
+70:         blood_type: bloodType || undefined,
+71:         caregiver_phone: caregiverPhone.trim() || undefined,
+72:         conditions: conditions
+73:           .split(",")
+74:           .map((item) => item.trim())
+75:           .filter(Boolean),
+76:         allergies: allergies.trim() || undefined,
+77:         smoker,
+78:       });
+79: 
+80:       if (result?.error) {
+81:         setError(result.error);
+82:         return;
+83:       }
+84: 
+85:       navigate("/app", { replace: true });
+86:     } finally {
+87:       setBusy(false);
+88:     }
+89:   }
+90: 
+91:   const inputClass =
+92:     "w-full h-11 rounded-2xl border border-black/10 bg-white px-4 outline-none";
+93: 
+94:   return (
+95:     <div className="phone-shell bg-paper min-h-dvh px-5 pt-8 pb-10">
+96:       <div className="max-w-xl mx-auto">
+97: 
+98:         <p className="text-teal font-bold">
+99:           DR ONLINE
+100:         </p>
+101: 
+102:         <h1 className="text-3xl font-extrabold mt-3">
+103:           تکمیل اطلاعات
+104:         </h1>
+105: 
+106:         <p className="text-muted mt-2">
+107:           شماره {pending.phone} تأیید شد.
+108:         </p>
+109: 
+110:         <form
+111:           onSubmit={submit}
+112:           className="mt-7 space-y-4"
+113:         >
+114: 
+115:           <div className="card rounded-3xl p-5 space-y-4">
+116: 
+117:             <div>
+118:               <label className="block font-bold mb-2">
+119:                 نام و نام خانوادگی
+120:               </label>
+121: 
+122:               <input
+123:                 className={inputClass}
+124:                 value={name}
+125:                 onChange={(e) => setName(e.target.value)}
+126:                 placeholder="مثلاً امیرعلی احمدی"
+127:                 autoComplete="name"
+128:               />
+129:             </div>
+130: 
+131:             <div>
+132:               <label className="block font-bold mb-2">
+133:                 کد ملی
+134:               </label>
+135: 
+136:               <input
+137:                 className={inputClass}
+138:                 value={nationalId}
+139:                 onChange={(e) => setNationalId(e.target.value)}
+140:                 inputMode="numeric"
+141:                 maxLength={10}
+142:                 placeholder="اختیاری"
+143:               />
+144:             </div>
+145: 
+146:             {pending.role === "patient" && (
+147:               <>
+148:                 <div className="grid grid-cols-2 gap-3">
+149: 
+150:                   <div>
+151:                     <label className="block font-bold mb-2">
+152:                       سن
+153:                     </label>
+154: 
+155:                     <input
+156:                       className={inputClass}
+157:                       value={age}
+158:                       onChange={(e) => setAge(e.target.value)}
+159:                       inputMode="numeric"
+160:                       type="number"
+161:                     />
+162:                   </div>
+163: 
+164:                   <div>
+165:                     <label className="block font-bold mb-2">
+166:                       جنسیت
+167:                     </label>
+168: 
+169:                     <select
+170:                       className={inputClass}
+171:                       value={gender}
+172:                       onChange={(e) => setGender(e.target.value)}
+173:                     >
+174:                       <option value="">انتخاب</option>
+175:                       <option value="زن">زن</option>
+176:                       <option value="مرد">مرد</option>
+177:                     </select>
+178:                   </div>
+179: 
+180:                 </div>
+
+========== AUTH REGISTRATION AND PROFILE SAVE ==========
+450:             await apiRegister(
+451:               payload.name.trim(),
+452:               payload.phone.trim(),
+453:               payload.password,
+454:               payload.role,
+455:             );
+456: 
+457:           if (
+458:             !apiUser ||
+459:             apiUser.id === undefined
+460:           ) {
+461:             return "Ã˜Â«Ã˜Â¨Ã˜ÂªÃ¢â‚¬Å’Ã™â€ Ã˜Â§Ã™â€¦ Ã˜Â¯Ã˜Â± Ã˜Â³Ã˜Â±Ã™Ë†Ã˜Â± Ã™â€ Ã˜Â§Ã™â€¦Ã™Ë†Ã¯Â¿Â½AÃ™â€š Ã˜Â¨Ã™Ë†Ã˜Â¯.";
+462:           }
+463: 
+464:           await unlockVault();
+465: 
+466:           const localUser =
+467:             apiUserToLocalUser(
+468:               apiUser,
+469:               payload.password,
+470:             );
+471: 
+472:           /*
+473:            * Cache the authenticated user locally.
+474:            */
+475:           await db.users.put(
+476:             localUser,
+477:           );
+478: 
+479:           /*
+480:            * Keep the patient profile locally
+481:            * for the current frontend screens.
+482:            */
+483:           if (
+484:             payload.role === "patient"
+485:           ) {
+486:             const existingProfile =
+487:               await db.profiles
+488:                 .where("userId")
+489:                 .equals(localUser.id)
+490:                 .first();
+491: 
+492:             if (!existingProfile) {
+493:               await db.profiles.add({
+494:                 id: crypto.randomUUID(),
+495:                 userId: localUser.id,
+496:                 nationalId:
+497:                   payload.nationalId || "",
+498:                 age:
+499:                   payload.age || 0,
+500:                 heightCm:
+501:                   payload.heightCm || 0,
+502:                 weightKg:
+503:                   payload.weightKg || 0,
+504:                 gender:
+505:                   payload.gender || "Ø²Ù†",
+506:                 bloodType:
+507:                   payload.bloodType ||
+508:                   "Ù†Ø§Ù…Ø´Ø®Øµ",
+509:                 caregiverPhone:
+510:                   payload.caregiverPhone ||
+511:                   "",
+512:                 conditions:
+513:                   payload.conditions || [],
+514:                 allergies:
+515:                   payload.allergies ||
+516:                   "Ù†Ø¯Ø§Ø±Ø¯",
+517:                 smoker: false,
+518:               });
+519:             }
+520:           }
+521: 
+522:           await writeSession(
+523:             localUser.id,
+524:           );
+525: 
+526:           setUser(
+527:             toPublic(localUser),
+528:           );
+529: 
+530:           return null;
+531:         } catch (error: any) {
+532:           console.error(
+533:             "Backend registration failed:",
+534:             error,
+535:           );
+536: 
+537:           return (
+538:             error?.message ||
+539:             "Ã˜Â«Ã˜Â¨Ã˜ÂªÃ¢â‚¬Å’Ã™â€ Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â§Ã™â€¦Ã™Ë†Ã¯Â¿Â½AÃ™â€š Ã˜Â¨Ã™Ë†Ã˜Â¯."
+540:           );
+541:         }
+542:       },
+543:       async completeRegistration(data) {
+544:         const pending = getPendingRegistration();
+545: 
+546:         if (!pending.token || !pending.phone) {
+547:           return {
+548:             error: "ÙØ±Ø§ÛŒÙ†Ø¯ Ø«Ø¨Øªâ€ŒÙ†Ø§Ù… Ù…Ù†Ù‚Ø¶ÛŒ Ø´Ø¯Ù‡ Ø§Ø³Øª.",
+549:           };
+550:         }
+551: 
+552:         try {
+553:           const result = await apiCompleteRegistration({
+554:             ...data,
+555:             registration_token: pending.token,
+556:           });
+557: 
+558:           const apiUser = normalizeApiUser(result);
+559: 
+560:           if (
+561:             !apiUser ||
+562:             apiUser.id === undefined ||
+563:             !apiUser.name ||
+564:             !apiUser.phone
+565:           ) {
+566:             return {
+567:               error: "Ø§Ø·Ù„Ø§Ø¹Ø§Øª Ú©Ø§Ø±Ø¨Ø± Ø§Ø² Ø³Ø±ÙˆØ± Ù…Ø¹ØªØ¨Ø± Ù†ÛŒØ³Øª.",
+568:             };
+569:           }
+570: 
+571:           await unlockVault();
+572: 
+573:           const localUser = apiUserToLocalUser(
+574:             apiUser,
+575:             "",
+576:           );
+577: 
+578:           const existing = await db.users.get(localUser.id);
+579: 
+580:           if (existing) {
+581:             await db.users.update(localUser.id, {
+582:               name: localUser.name,
+583:               phone: localUser.phone,
+584:               role: localUser.role,
+585:             });
+586:           } else {
+587:             await db.users.put(localUser);
+588:           }
+589: 
+590:           if (apiUser.role === "patient") {
+591:             const existingProfile =
+592:               await db.profiles
+593:                 .where("userId")
+594:                 .equals(localUser.id)
+595:                 .first();
+596: 
+597:             if (!existingProfile) {
+598:               await db.profiles.add({
+599:                 id: crypto.randomUUID(),
+600:                 userId: localUser.id,
+601:                 nationalId: data.national_id || "",
+602:                 age: data.age || 0,
+603:                 heightCm: data.height_cm || 0,
+604:                 weightKg: data.weight_kg || 0,
+605:                 gender: data.gender === "Ø²Ù†" || data.gender === "Ù…Ø±Ø¯" ? data.gender : "Ù†Ø§Ù…Ø´Ø®Øµ",
+606:                 bloodType: data.blood_type || "Ù†Ø§Ù…Ø´Ø®Øµ",
+607:                 caregiverPhone: data.caregiver_phone || "",
+608:                 conditions: data.conditions || [],
+609:                 allergies: data.allergies || "Ù†Ø¯Ø§Ø±Ø¯",
+610:                 smoker: data.smoker || false,
+611:               });
+612:             }
+613:           }
+614: 
+615:           await writeSession(localUser.id);
+616:           clearPendingRegistration();
+617:           setUser(toPublic(localUser));
+618: 
+619:           return {
+620:             error: null,
+621:           };
+622:         } catch (error: any) {
+623:           console.error(
+624:             "Complete registration failed:",
+625:             error,
+626:           );
+627: 
+628:           return {
+629:             error:
+630:               error?.message ||
+
+========== PROFILE LOAD AND SAVE PAGE ==========
+1: import { useEffect, useMemo, useState } from "react";
+2: import { Link, useNavigate, useParams } from "react-router-dom";
+3: import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
+4: import { db, openChat, openNote, sealChat, sealNote } from "../db";
+5: import { useAuth } from "../auth";
+6: import { alertFromVital, assessVital, assistantReply } from "../ai";
+7: import type { Alert, ChatMessage, Medication, Note, PatientProfile, User, Vital, VitalType } from "../types";
+8: 
+9: import { apiGetProfile, apiSaveProfile, apiGetVitals, apiAddVital } from "../api";
+10: 
+11: function getBackendUserId(localId: string): number | null {
+12:   const match = /^api-(\d+)$/.exec(localId);
+13:   if (!match) return null;
+14:   const id = Number(match[1]);
+15:   return Number.isSafeInteger(id) && id > 0 ? id : null;
+16: }
+17: function usePatientBundle(patientUserId?: string) {
+18:   const [profile, setProfile] = useState<PatientProfile | undefined>();
+19:   const [patient, setPatient] = useState<User | undefined>();
+20:   const [vitals, setVitals] = useState<Vital[]>([]);
+21:   const [meds, setMeds] = useState<Medication[]>([]);
+22:   const [notes, setNotes] = useState<Note[]>([]);
+23:   const [alerts, setAlerts] = useState<Alert[]>([]);
+24: 
+25:   async function reload() {
+26:     if (!patientUserId) return;
+27:     setPatient(await db.users.get(patientUserId));
+28:     try {
+29:         const backendUserId = getBackendUserId(patientUserId);
+30:         if (backendUserId === null) {
+31:           throw new Error("No numeric backend user ID for this local user.");
+32:         }
+33:         const apiProfileResponse = await apiGetProfile(backendUserId);
+34:         const apiProfile = apiProfileResponse?.profile;
+35:         if (!apiProfile) {
+36:           throw new Error("No profile returned by backend.");
+37:         }
+38: 
+39:         if (apiProfile) {
+40:           setProfile({
+41:             id: String(apiProfile.id ?? crypto.randomUUID()),
+42:             userId: patientUserId,
+43:             nationalId: apiProfile.national_id,
+44:             age: apiProfile.age,
+45:             heightCm: apiProfile.height_cm,
+46:             weightKg: apiProfile.weight_kg,
+47:             gender: apiProfile.gender as PatientProfile["gender"],
+48:             bloodType: apiProfile.blood_type,
+49:             caregiverPhone: apiProfile.caregiver_phone,
+50:             conditions: apiProfile.conditions,
+51:             allergies: apiProfile.allergies,
+52:             smoker: apiProfile.smoker,
+53:           });
+54:         }
+55:       } catch (error) {
+56:         console.warn("Profile API unavailable, using local cache:", error);
+57: 
+58:         setProfile(
+59:           await db.profiles.where("userId").equals(patientUserId).first(),
+60:         );
+61:       }
+62:     let allVitals: Vital[] = [];
+63: 
+64:       try {
+65:         const backendUserId = getBackendUserId(patientUserId);
+66:         if (backendUserId === null) {
+67:           throw new Error("No numeric backend user ID for this local user.");
+68:         }
+69:         const apiVitals = await apiGetVitals(backendUserId);
+70: 
+71:         allVitals = apiVitals.vitals.map((v) => ({
+72:           id: String(v.id),
+73:           patientUserId,
+74:           type: v.type as VitalType,
+75:           value: v.value,
+76:           value2: v.value2 ?? undefined,
+77:           context: v.context ?? undefined,
+78:           at: Date.parse(v.recorded_at),
+79:         }));
+80:       } catch (error) {
+81:         console.warn("Vitals API unavailable, using local cache:", error);
+82: 
+83:         allVitals = await db.vitals
+84:           .where("patientUserId")
+85:           .equals(patientUserId)
+86:           .toArray();
+87:       }
+88:     setVitals(allVitals.sort((a, b) => b.at - a.at));
+89:     setMeds(await db.medications.where("patientUserId").equals(patientUserId).toArray());
+90:     setNotes(
+91:       (
+92:         await Promise.all(
+93:           (await db.notes.where("patientUserId").equals(patientUserId).toArray()).map(openNote),
+94:         )
+95:       ).sort((a, b) => b.at - a.at),
+96:     );
+97:     setAlerts((await db.alerts.where("patientUserId").equals(patientUserId).toArray()).sort((a, b) => b.at - a.at));
+98:   }
+99: 
+100:   useEffect(() => {
+
+========== PROFILE EDIT HANDLERS ==========
+350:     <section className="card rounded-3xl p-4">
+351:       <p className="font-bold mb-3">Ø±ÙˆÙ†Ø¯ Ù‚Ù†Ø¯ Ø®ÙˆÙ†</p>
+352:       <div className="h-40">
+353:         <ResponsiveContainer>
+354:           <LineChart data={data}>
+355:             <XAxis dataKey="t" tick={{ fontSize: 10 }} />
+356:             <Tooltip />
+357:             <Line type="monotone" dataKey="v" stroke="#0f6e6b" strokeWidth={3} dot={false} />
+358:           </LineChart>
+359:         </ResponsiveContainer>
+360:       </div>
+361:     </section>
+362:   );
+363: }
+364: 
+365: export function AIChat() {
+366:   const { user } = useAuth();
+367:   const [messages, setMessages] = useState<ChatMessage[]>([]);
+368:   const [text, setText] = useState("");
+369:   const [targetId, setTargetId] = useState(user?.id || "");
+370:   const [patients, setPatients] = useState<User[]>([]);
+371: 
+372:   useEffect(() => {
+373:     (async () => {
+374:       if (!user) return;
+375:       if (user.role === "patient") setTargetId(user.id);
+376:       else {
+377:         const links = await db.links.where("fromUserId").equals(user.id).toArray();
+378:         const ps = await db.users.bulkGet(links.map((l) => l.patientUserId));
+379:         setPatients(ps.filter(Boolean) as User[]);
+380:         if (links[0]) setTargetId(links[0].patientUserId);
+381:       }
+382:       const all = await db.chats.where("userId").equals(user.id).toArray();
+383:       setMessages((await Promise.all(all.map(openChat))).sort((a, b) => a.at - b.at));
+384:     })();
+385:   }, [user]);
+386: 
+387:   async function send() {
+388:     if (!user || !text.trim()) return;
+389:     const mine: ChatMessage = { id: crypto.randomUUID(), userId: user.id, role: "user", content: text, at: Date.now() };
+390:     const profile = await db.profiles.where("userId").equals(targetId).first();
+391:     const vitals = await db.vitals.where("patientUserId").equals(targetId).toArray();
+392:     const reply: ChatMessage = {
+393:       id: crypto.randomUUID(),
+394:       userId: user.id,
+395:       role: "assistant",
+396:       content: assistantReply(text, profile, vitals, user.role),
+397:       at: Date.now() + 1,
+398:     };
+399:     await db.chats.bulkAdd([await sealChat(mine), await sealChat(reply)]);
+400:     setMessages((m) => [...m, mine, reply]);
+401:     setText("");
+402:   }
+403: 
+404:   return (
+405:     <div className="flex flex-col min-h-[70vh]">
+406:       <h2 className="text-2xl font-extrabold">Ù‡Ù…Ø±Ø§Ù‡ Ù‡ÙˆØ´Ù…Ù†Ø¯</h2>
+407:       {user?.role !== "patient" && (
+408:         <select
+409:           className="mt-3 h-11 rounded-2xl bg-white px-3"
+410:           value={targetId}
+411:           onChange={(e) => setTargetId(e.target.value)}
+412:         >
+413:           {patients.map((p) => (
+414:             <option key={p.id} value={p.id}>
+415:               Ù¾Ø±ÙˆÙ†Ø¯Ù‡ {p.name}
+416:             </option>
+417:           ))}
+418:         </select>
+419:       )}
+420:       <div className="flex-1 space-y-3 mt-4">
+421:         {messages.map((m) => (
+422:           <div
+423:             key={m.id}
+424:             className={`max-w-[90%] rounded-3xl px-4 py-3 text-sm leading-7 whitespace-pre-line ${
+425:               m.role === "user" ? "mr-auto bg-teal text-white" : "ml-auto card"
+426:             }`}
+427:           >
+428:             {m.content}
+429:           </div>
+430:         ))}
+431:       </div>
+432:       <div className="flex gap-2 mt-4">
+433:         <input
+434:           className="flex-1 h-12 rounded-2xl bg-white px-4"
+435:           placeholder="Ù…Ø«Ù„Ø§Ù‹ Ù‚Ù†Ø¯ Ø®ÙˆÙ†Ù… Ø¨Ø§Ù„Ø§Ø³Øª..."
+436:           value={text}
+437:           onChange={(e) => setText(e.target.value)}
+438:           onKeyDown={(e) => e.key === "Enter" && send()}
+439:         />
+440:         <button onClick={send} className="h-12 px-4 rounded-2xl bg-teal text-white font-bold">
+441:           Ø¨Ù¾Ø±Ø³
+442:         </button>
+443:       </div>
+444:     </div>
+445:   );
+446: }
+447: 
+448: export function MonitorHome() {
+449:   const { user } = useAuth();
+450:   const [rows, setRows] = useState<{ patient: User; profile?: PatientProfile; last?: Vital; alerts: number }[]>([]);
+451:   const [nid, setNid] = useState("");
+452: 
+453:   async function load() {
+454:     if (!user) return;
+455:     const links = await db.links.where("fromUserId").equals(user.id).toArray();
+456:     const out = [];
+457:     for (const l of links) {
+458:       const patient = await db.users.get(l.patientUserId);
+459:       if (!patient) continue;
+460:       const profile = await db.profiles.where("userId").equals(patient.id).first();
+461:       const vitals = await db.vitals.where("patientUserId").equals(patient.id).toArray();
+462:       const last = vitals.sort((a, b) => b.at - a.at)[0];
+463:       const alerts = await db.alerts.where("patientUserId").equals(patient.id).toArray();
+464:       out.push({ patient, profile, last, alerts: alerts.filter((a) => !a.read).length });
+465:     }
+466:     setRows(out);
+467:   }
+468: 
+469:   useEffect(() => {
+470:     load();
+471:   }, [user]);
+472: 
+473:   return (
+474:     <div className="space-y-4 rise">
+475:       <h2 className="text-2xl font-extrabold">{user?.role === "doctor" ? "Ø¨ÛŒÙ…Ø§Ø±Ø§Ù† Ù…Ù†" : "ØªØ­Øª Ù†Ø¸Ø± Ù…Ù†"}</h2>
+476:       {user?.role === "caregiver" && (
+477:         <div className="flex gap-2">
+478:           <input
+479:             className="flex-1 h-12 rounded-2xl bg-white px-4"
+480:             placeholder="Ø§ÙØ²ÙˆØ¯Ù† Ø¨Ø§ Ú©Ø¯ Ù…Ù„ÛŒ"
+481:             value={nid}
+482:             onChange={(e) => setNid(e.target.value)}
+483:           />
+484:           <button
+485:             className="h-12 px-4 rounded-2xl bg-teal text-white font-bold"
+486:             onClick={async () => {
+487:               if (!user) return;
+488:               const patient = await db.users.where("nationalId").equals(nid.trim()).first();
+489:               if (!patient) return;
+490:               await db.links.add({
+491:                 id: crypto.randomUUID(),
+492:                 fromUserId: user.id,
+493:                 patientUserId: patient.id,
+494:                 relation: "Ù…Ø±Ø§Ù‚Ø¨",
+495:                 kind: "care",
+496:               });
+497:               setNid("");
+498:               load();
+499:             }}
+500:           >
+501:             Ø§ÙØ²ÙˆØ¯Ù†
+502:           </button>
+503:         </div>
+504:       )}
+505:       {rows.map((r) => (
+506:         <Link key={r.patient.id} to={`/app/patient/${r.patient.id}`} className="card rounded-3xl p-4 block">
+507:           <div className="flex justify-between">
+508:             <div>
+509:               <p className="font-bold">{r.patient.name}</p>
+510:               <p className="text-xs text-muted mt-1">
+
+========== MEDICAL API ==========
+1: from datetime import datetime, timezone
+2: from typing import Optional
+3: 
+4: from fastapi import APIRouter, Depends, HTTPException, status
+5: from pydantic import BaseModel
+6: from sqlalchemy import select
+7: from sqlalchemy.ext.asyncio import AsyncSession
+8: 
+9: from app.database import get_db
+10: from app.models.medical import PatientProfile, Vital
+11: from app.models.user import User
+12: from app.security.jwt import get_current_user, ensure_self_access
+13: 
+14: 
+15: router = APIRouter(
+16:     prefix="/medical",
+17:     tags=["Medical"],
+18: )
+19: 
+20: 
+21: class PatientProfileRequest(BaseModel):
+22:     user_id: int
+23:     national_id: str
+24:     age: int
+25:     height_cm: float
+26:     weight_kg: float
+27:     gender: str
+28:     blood_type: str
+29:     caregiver_phone: str
+30:     conditions: list[str] = []
+31:     allergies: str = ""
+32:     smoker: bool = False
+33: 
+34: 
+35: class VitalRequest(BaseModel):
+36:     patient_user_id: int
+37:     type: str
+38:     value: float
+39:     value2: Optional[float] = None
+40:     context: Optional[str] = None
+41: 
+42: 
+43: @router.get("/patients/{user_id}/profile")
+44: async def read_profile(
+45:     user_id: int,
+46:     current_user: User = Depends(get_current_user),
+47:     db: AsyncSession = Depends(get_db),
+48: ):
+49:     ensure_self_access(current_user, user_id)
+50: 
+51:     result = await db.execute(
+52:         select(PatientProfile).where(
+53:             PatientProfile.user_id == user_id
+54:         )
+55:     )
+56: 
+57:     profile = result.scalar_one_or_none()
+58: 
+59:     if profile is None:
+60:         return {
+61:             "status": "ok",
+62:             "profile": None,
+63:         }
+64: 
+65:     return {
+66:         "status": "ok",
+67:         "profile": {
+68:             "id": profile.id,
+69:             "user_id": profile.user_id,
+70:             "national_id": profile.national_id,
+71:             "age": profile.age,
+72:             "height_cm": profile.height_cm,
+73:             "weight_kg": profile.weight_kg,
+74:             "gender": profile.gender,
+75:             "blood_type": profile.blood_type,
+76:             "caregiver_phone": profile.caregiver_phone,
+77:             "conditions": (
+78:                 profile.conditions.split(",")
+79:                 if profile.conditions
+80:                 else []
+81:             ),
+82:             "allergies": profile.allergies or "",
+83:             "smoker": profile.smoker,
+84:         },
+85:     }
+86: 
+87: 
+88: @router.put("/patients/{user_id}/profile")
+89: async def update_profile(
+90:     user_id: int,
+91:     data: PatientProfileRequest,
+92:     current_user: User = Depends(get_current_user),
+93:     db: AsyncSession = Depends(get_db),
+94: ):
+95:     ensure_self_access(current_user, user_id)
+96: 
+97:     if data.user_id != user_id:
+98:         raise HTTPException(
+99:             status_code=status.HTTP_400_BAD_REQUEST,
+100:             detail="User ID mismatch",
+101:         )
+102: 
+103:     result = await db.execute(
+104:         select(PatientProfile).where(
+105:             PatientProfile.user_id == user_id
+106:         )
+107:     )
+108: 
+109:     profile = result.scalar_one_or_none()
+110: 
+111:     conditions_text = ",".join(data.conditions)
+112: 
+113:     if profile is None:
+114:         profile = PatientProfile(
+115:             user_id=user_id,
+116:             national_id=data.national_id,
+117:             age=data.age,
+118:             height_cm=data.height_cm,
+119:             weight_kg=data.weight_kg,
+120:             gender=data.gender,
+121:             blood_type=data.blood_type,
+122:             caregiver_phone=data.caregiver_phone,
+123:             conditions=conditions_text,
+124:             allergies=data.allergies,
+125:             smoker=data.smoker,
+126:         )
+127: 
+128:         db.add(profile)
+129: 
+130:     else:
+131:         profile.national_id = data.national_id
+132:         profile.age = data.age
+133:         profile.height_cm = data.height_cm
+134:         profile.weight_kg = data.weight_kg
+135:         profile.gender = data.gender
+136:         profile.blood_type = data.blood_type
+137:         profile.caregiver_phone = data.caregiver_phone
+138:         profile.conditions = conditions_text
+139:         profile.allergies = data.allergies
+140:         profile.smoker = data.smoker
+141: 
+142:     await db.commit()
+143:     await db.refresh(profile)
+144: 
+145:     return {
+146:         "status": "ok",
+147:         "profile": {
+148:             "id": profile.id,
+149:             "user_id": profile.user_id,
+150:             "national_id": profile.national_id,
+151:             "age": profile.age,
+152:             "height_cm": profile.height_cm,
+153:             "weight_kg": profile.weight_kg,
+154:             "gender": profile.gender,
+155:             "blood_type": profile.blood_type,
+156:             "caregiver_phone": profile.caregiver_phone,
+157:             "conditions": data.conditions,
+158:             "allergies": profile.allergies or "",
+159:             "smoker": profile.smoker,
+160:         },
+161:     }
+162: 
+163: 
+164: @router.post("/vitals")
+165: async def create_vital(
+166:     data: VitalRequest,
+167:     current_user: User = Depends(get_current_user),
+168:     db: AsyncSession = Depends(get_db),
+169: ):
+170:     ensure_self_access(current_user, data.patient_user_id)
+171: 
+172:     vital = Vital(
+173:         patient_user_id=data.patient_user_id,
+174:         type=data.type,
+175:         value=data.value,
+
+========== DATABASE CONFIGURATION ==========
+1: import os
+2: 
+3: from dotenv import load_dotenv
+4: from sqlalchemy.ext.asyncio import (
+5:     create_async_engine,
+6:     async_sessionmaker,
+7:     AsyncSession,
+8: )
+9: from sqlalchemy.orm import DeclarativeBase
+10: 
+11: load_dotenv()
+12: 
+13: DATABASE_URL = os.getenv("DATABASE_URL")
+14: 
+15: if not DATABASE_URL:
+16:     raise RuntimeError("DATABASE_URL is not configured.")
+17: 
+18: if not DATABASE_URL.startswith("postgresql+asyncpg://"):
+19:     raise RuntimeError(
+20:         "DATABASE_URL must use postgresql+asyncpg://"
+21:     )
+22: 
+23: engine = create_async_engine(
+24:     DATABASE_URL,
+25:     echo=False,
+26:     pool_pre_ping=True,
+27: )
+28: 
+29: SessionLocal = async_sessionmaker(
+30:     engine,
+31:     expire_on_commit=False,
+32: )
+33: 
+34: class Base(DeclarativeBase):
+35:     pass
+36: 
+37: async def get_db():
+38:     async with SessionLocal() as session:
+39:         yield session
+40: 
+41: async def init_db():
+42:     from app.models.user import User
+43: 
+44:     async with engine.begin() as conn:
+45:         await conn.run_sync(Base.metadata.create_all)
+
+========== MEDICAL MODEL ==========
+1: from sqlalchemy import String, Integer, Float, Boolean, ForeignKey
+2: from sqlalchemy.orm import Mapped, mapped_column
+3: 
+4: from app.database import Base
+5: 
+6: 
+7: class PatientProfile(Base):
+8:     __tablename__ = "patient_profiles"
+9: 
+10:     id: Mapped[int] = mapped_column(
+11:         Integer,
+12:         primary_key=True,
+13:         autoincrement=True,
+14:     )
+15: 
+16:     user_id: Mapped[int] = mapped_column(
+17:         ForeignKey("users.id"),
+18:         unique=True,
+19:         nullable=False,
+20:         index=True,
+21:     )
+22: 
+23:     national_id: Mapped[str | None] = mapped_column(
+24:         String(50),
+25:         nullable=True,
+26:     )
+27: 
+28:     age: Mapped[int | None] = mapped_column(
+29:         Integer,
+30:         nullable=True,
+31:     )
+32: 
+33:     height_cm: Mapped[float | None] = mapped_column(
+34:         Float,
+35:         nullable=True,
+36:     )
+37: 
+38:     weight_kg: Mapped[float | None] = mapped_column(
+39:         Float,
+40:         nullable=True,
+41:     )
+42: 
+43:     gender: Mapped[str | None] = mapped_column(
+44:         String(30),
+45:         nullable=True,
+46:     )
+47: 
+48:     blood_type: Mapped[str | None] = mapped_column(
+49:         String(20),
+50:         nullable=True,
+51:     )
+52: 
+53:     caregiver_phone: Mapped[str | None] = mapped_column(
+54:         String(30),
+55:         nullable=True,
+56:     )
+57: 
+58:     conditions: Mapped[str | None] = mapped_column(
+59:         String(2000),
+60:         nullable=True,
+61:     )
+62: 
+63:     allergies: Mapped[str | None] = mapped_column(
+64:         String(2000),
+65:         nullable=True,
+66:     )
+67: 
+68:     smoker: Mapped[bool] = mapped_column(
+69:         Boolean,
+70:         default=False,
+71:         nullable=False,
+72:     )
+73: 
+74: 
+75: class Vital(Base):
+76:     __tablename__ = "vitals"
+77: 
+78:     id: Mapped[int] = mapped_column(
+79:         Integer,
+80:         primary_key=True,
+81:         autoincrement=True,
+82:     )
+83: 
+84:     patient_user_id: Mapped[int] = mapped_column(
+85:         ForeignKey("users.id"),
+86:         nullable=False,
+87:         index=True,
+88:     )
+89: 
+90:     type: Mapped[str] = mapped_column(
+91:         String(50),
+92:         nullable=False,
+93:     )
+94: 
+95:     value: Mapped[float] = mapped_column(
+96:         Float,
+97:         nullable=False,
+98:     )
+99: 
+100:     value2: Mapped[float | None] = mapped_column(
+101:         Float,
+102:         nullable=True,
+103:     )
+104: 
+105:     context: Mapped[str | None] = mapped_column(
+106:         String(1000),
+107:         nullable=True,
+108:     )
+109: 
+110:     recorded_at: Mapped[str] = mapped_column(
+111:         String(100),
+112:         nullable=False,
+113:         index=True,
+114:     )
+
+========== AUTH COMPLETE REGISTRATION ==========
+110:         "user": {
+111:             "id": user.id,
+112:             "name": user.name,
+113:             "phone": user.phone,
+114:             "role": user.role,
+115:         },
+116:     }
+117: 
+118: 
+119: @router.get("/me")
+120: async def me(
+121:     current_user: User = Depends(
+122:         get_current_user
+123:     ),
+124: ):
+125: 
+126:     return {
+127:         "id": current_user.id,
+128:         "name": current_user.name,
+129:         "phone": current_user.phone,
+130:         "role": current_user.role,
+131:     }
+132: 
+133: class CompleteRegistrationRequest(BaseModel):
+134:     registration_token: str
+135:     name: str
+136:     role: str = "patient"
+137:     national_id: str | None = None
+138:     age: int | None = None
+139:     height_cm: float | None = None
+140:     weight_kg: float | None = None
+141:     gender: str | None = None
+142:     blood_type: str | None = None
+143:     caregiver_phone: str | None = None
+144:     conditions: list[str] = []
+145:     allergies: str | None = None
+146:     smoker: bool = False
+147: 
+148: 
+149: @router.post("/complete-registration")
+150: async def complete_registration(
+151:     data: CompleteRegistrationRequest,
+152:     db: AsyncSession = Depends(get_db),
+153: ):
+154:     token = data.registration_token.strip()
+155:     name = data.name.strip()
+156:     role = data.role.strip().lower()
+157: 
+158:     if not token or not name:
+159:         raise HTTPException(
+160:             status_code=400,
+161:             detail="Token and name are required.",
+162:         )
+163: 
+164:     if role not in {"patient", "caregiver", "doctor"}:
+165:         raise HTTPException(
+166:             status_code=400,
+167:             detail="Invalid role.",
+168:         )
+169: 
+170:     token_hash = hashlib.sha256(
+171:         token.encode("utf-8")
+172:     ).hexdigest()
+173: 
+174:     result = await db.execute(
+175:         select(PendingRegistration).where(
+176:             PendingRegistration.registration_token_hash == token_hash,
+177:             PendingRegistration.consumed.is_(False),
+178:         )
+179:     )
+180: 
+181:     pending = result.scalar_one_or_none()
+182: 
+183:     if pending is None:
+184:         raise HTTPException(
+185:             status_code=400,
+186:             detail="Invalid or expired registration token.",
+187:         )
+188: 
+189:     now = datetime.now(timezone.utc)
+190: 
+191:     if pending.expires_at <= now:
+192:         pending.consumed = True
+193:         await db.commit()
+194: 
+195:         raise HTTPException(
+196:             status_code=400,
+197:             detail="Registration token expired.",
+198:         )
+199: 
+200:     phone = pending.phone
+201: 
+202:     result = await db.execute(
+203:         select(User).where(User.phone == phone)
+204:     )
+205: 
+206:     if result.scalar_one_or_none() is not None:
+207:         raise HTTPException(
+208:             status_code=409,
+209:             detail="Phone number already registered.",
+210:         )
+211: 
+212:     user = User(
+213:         name=name,
+214:         phone=phone,
+215:         password_hash=hash_password(
+216:             secrets.token_urlsafe(48)
+217:         ),
+218:         role=role,
+219:     )
+220: 
+221:     db.add(user)
+222:     await db.flush()
+223: 
+224:     if role == "patient":
+225:         db.add(
+226:             PatientProfile(
+227:                 user_id=user.id,
+228:                 national_id=data.national_id,
+229:                 age=data.age,
+230:                 height_cm=data.height_cm,
+231:                 weight_kg=data.weight_kg,
+232:                 gender=data.gender,
+233:                 blood_type=data.blood_type,
+234:                 caregiver_phone=data.caregiver_phone,
+235:                 conditions=",".join(data.conditions),
+236:                 allergies=data.allergies or "",
+237:                 smoker=data.smoker,
+238:             )
+239:         )
+240: 
+241:     pending.consumed = True
+242: 
+243:     await db.commit()
+244:     await db.refresh(user)
+245: 
+246:     return {
+247:         "status": "ok",
+248:         "access_token": create_access_token(user),
+249:         "token_type": "bearer",
+250:         "user": {
+251:             "id": user.id,
+252:             "name": user.name,
+253:             "phone": user.phone,
+254:             "role": user.role,
+255:         },
+
+========== APP ROUTER CONFIGURATION ==========
+1: from contextlib import asynccontextmanager
+2: 
+3: from fastapi import FastAPI
+4: from fastapi.middleware.cors import CORSMiddleware
+5: 
+6: from app.database import init_db
+7: 
+8: from app.models.user import User
+9: from app.models.medical import PatientProfile, Vital
+10: from app.models.link import UserPatientLink
+11: from app.models.otp import OTPCode
+12: 
+13: from app.api.auth import router as auth_router
+14: from app.api.otp import router as otp_router
+15: from app.api.medical import router as medical_router
+16: 
+17: 
+18: @asynccontextmanager
+19: async def lifespan(app: FastAPI):
+20:     await init_db()
+21:     yield
+22: 
+23: 
+24: app = FastAPI(
+25:     title="DR-ONLINE API",
+26:     version="1.0.0",
+27:     lifespan=lifespan,
+28: )
+29: 
+30: 
+31: app.add_middleware(
+32:     CORSMiddleware,
+33:     allow_origins=[
+34:         "http://localhost:5173",
+35:         "http://127.0.0.1:5173",
+36:         "http://localhost:5175",
+37:         "http://127.0.0.1:5175",
+38:         "http://localhost:5176",
+39:         "http://127.0.0.1:5176",
+40:         "http://localhost:5177",
+41:         "http://127.0.0.1:5177",
+42:     ],
+43:     allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):[0-9]+$",
+44:     allow_credentials=True,
+45:     allow_methods=["*"],
+46:     allow_headers=["*"],
+47: )
+48: 
+49: 
+50: @app.middleware("http")
+51: async def security_headers(request, call_next):
+52:     response = await call_next(request)
+53: 
+54:     response.headers["X-Content-Type-Options"] = "nosniff"
+55:     response.headers["X-Frame-Options"] = "DENY"
+56:     response.headers["Referrer-Policy"] = "no-referrer"
+57:     response.headers["Permissions-Policy"] = (
+58:         "camera=(), microphone=(), geolocation=()"
+59:     )
+60:     response.headers["Cache-Control"] = "no-store"
+61: 
+62:     return response
+63: 
+64: 
+65: @app.get("/api/health")
+66: async def health():
+67:     return {
+68:         "status": "ok",
+69:         "service": "dr-online-api",
+70:     }
+71: 
+72: 
+73: app.include_router(auth_router, prefix="/api")
+74: app.include_router(otp_router, prefix="/api")
+75: app.include_router(medical_router, prefix="/api")
+76: 
+77: 
+78: 
+79: 
+
+========== STATIC FLOW CHECKS ==========
+PASS : Frontend API get profile
+PASS : Frontend API save profile
+PASS : Complete registration API
+PASS : Auth calls completion API
+PASS : Backend GET profile route
+PASS : Backend PUT profile route
+
+========== PYTHON SYNTAX CHECK ==========
+compileall exit code: 0
+
+========== FRONTEND BUILD ==========
+npm notice run dr-online@1.0.0 build
+npm notice run vite build
+[36mvite v7.3.6 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32mΓ£ô[39m 2284 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                 [39m[1m[2m  0.80 kB[22m[1m[22m[2m Γöé gzip:   0.47 kB[22m
+[2mdist/[22m[35massets/index-DLEoNd_m.css  [39m[1m[2m 21.83 kB[22m[1m[22m[2m Γöé gzip:   5.01 kB[22m
+[2mdist/[22m[36massets/index-smPSPJ3r.js   [39m[1m[33m742.07 kB[39m[22m[2m Γöé gzip: 231.01 kB[22m
+[33m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[32mΓ£ô built in 6.15s[39m
+Frontend build exit code: 0
+
+========== BACKEND HEALTH ==========
+{"status":"ok","service":"dr-online-api"}

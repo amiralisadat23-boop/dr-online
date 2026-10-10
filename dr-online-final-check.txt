@@ -1,0 +1,63 @@
+﻿DR-ONLINE FINAL DIAGNOSTIC
+Date: 2026-10-09 03:27:26
+Mode: READ ONLY
+
+[OK] Frontend source folder found.
+[OK] src\api.ts exists.
+[FOUND] Frontend API symbol: apiLogin
+[FOUND] Frontend API symbol: apiRegister
+[FOUND] Frontend API symbol: apiMe
+[FOUND] Frontend API symbol: apiGetProfile
+[FOUND] Frontend API symbol: apiSaveProfile
+[FOUND] Frontend API symbol: VITE_API_URL
+[FOUND] usePatientBundle: C:\Users\amira\dr-online\src\pages\AppPages.tsx:17
+[FOUND] usePatientBundle: C:\Users\amira\dr-online\src\pages\AppPages.tsx:109
+[FOUND] usePatientBundle: C:\Users\amira\dr-online\src\pages\AppPages.tsx:293
+[FOUND] usePatientBundle: C:\Users\amira\dr-online\src\pages\AppPages.tsx:532
+[FOUND] VITE_API_URL is configured in .env.local (value not shown).
+[OK] Medical API file found.
+[FOUND] Medical route function: read_profile
+[FOUND] Medical route function: update_profile
+Medical API line 43: @router.get("/patients/{user_id}/profile")
+Medical API line 44: async def read_profile(
+Medical API line 88: @router.put("/patients/{user_id}/profile")
+Medical API line 89: async def update_profile(
+Medical API line 164: @router.post("/vitals")
+Medical API line 200: @router.get("/patients/{user_id}/vitals")
+[OK] Medical database module found.
+[FOUND] Medical database function: get_profile
+[FOUND] Medical database function: save_profile
+[OK] backend\app\database.py found.
+[FOUND] Database configuration symbol: create_async_engine
+[FOUND] Database configuration symbol: async_sessionmaker
+[FOUND] Database configuration symbol: DATABASE_URL
+[FOUND] Authentication-related code: auth.py
+[FOUND] Authentication-related code: otp.py
+[OK] backend\app\main.py found.
+[FOUND] CORS middleware configured.
+
+===== LIVE API TESTS =====
+[PASS] Backend health endpoint responded.
+Health status: ok
+Service: dr-online-api
+[WARNING] API docs endpoint could not be confirmed.
+
+===== CONFIGURATION FILE PRESENCE =====
+[FOUND] C:\Users\amira\dr-online\package.json
+[FOUND] C:\Users\amira\dr-online\backend\requirements.txt
+[FOUND] C:\Users\amira\dr-online\backend\.env
+
+===== FINAL STATUS =====
+Project folder: FOUND
+Frontend source: FOUND
+Medical API routes: FOUND
+Medical database module: FOUND
+Database configuration: FOUND
+Authentication routes: FOUND
+Backend health: PASS
+Frontend API configuration: ENV FILE FOUND
+
+IMPORTANT:
+This diagnostic checks files, code symbols and API availability.
+It does not prove that a profile saves to PostgreSQL or that authorization is secure.
+No patient records were read or modified.

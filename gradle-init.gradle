@@ -1,0 +1,33 @@
+allprojects {
+    buildscript {
+        repositories {
+            maven {
+                url = uri("https://repo.huaweicloud.com/repository/maven/")
+            }
+            mavenCentral()
+        }
+    }
+
+    repositories {
+        maven {
+            url = uri("https://repo.huaweicloud.com/repository/maven/")
+        }
+        mavenCentral()
+    }
+}
+
+gradle.beforeProject { project ->
+    project.buildscript.repositories {
+        maven {
+            url = uri("https://repo.huaweicloud.com/repository/maven/")
+        }
+        mavenCentral()
+    }
+
+    project.repositories {
+        maven {
+            url = uri("https://repo.huaweicloud.com/repository/maven/")
+        }
+        mavenCentral()
+    }
+}
