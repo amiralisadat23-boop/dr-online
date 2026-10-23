@@ -18,6 +18,7 @@ from app.database import get_db
 from app.models.user import User
 
 
+ALLOWED_ROLES = {"patient", "caregiver", "doctor"}
 ALGORITHM = "HS256"
 
 SECRET_KEY = os.getenv("DR_ONLINE_JWT_SECRET")
@@ -39,10 +40,14 @@ bearer = HTTPBearer(auto_error=False)
 
 def create_access_token(user: User) -> str:
     now = datetime.now(timezone.utc)
+    role = str((user.role or "patient")).strip().lower()
+
+    if role not in ALLOWED_ROLES:
+        role = "patient"
 
     payload = {
         "sub": str(user.id),
-        "role": str(user.role),
+        "role": role,
         "iat": int(now.timestamp()),
         "exp": int(
             (
